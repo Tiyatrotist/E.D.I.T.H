@@ -1,70 +1,95 @@
 EDITH — Voice & Vision Powered %100 Local AI Assistant (v1.0)
 
-EDITH (Even Dead I'm The Hero) is a %100 offline, privacy-focused personal AI assistant and system agent that runs entirely on your local hardware without relying on external cloud services, remote servers, or third-party API keys (such as OpenAI or Gemini).
+    :::::::::: :::::::::  ::::::::::: ::::::::::: :::    ::: 
+    :+:        :+:    :+:     :+:         :+:     :+:    :+: 
+    +:+        +:+    +:+     +:+         +:+     +:+    +:+ 
+    +#++:++#   +#+    +:+     +#+         +#+     +#++:++#+# 
+    +#+        +#+    +#+     +#+         +#+     +#+    +#+ 
+    #+#        #+#    #+#     #+#         #+#     #+#    #+# 
+    ########## #########  ###########     ###     ###    ### 
 
-Deeply integrated with the Windows ecosystem, EDITH v1 captures voice commands, performs real-time mathematical voice activity detection (VAD), captures and interprets active screen windows/errors, and executes system automation tools (WhatsApp, Calendar, Media, and Shell) seamlessly.
+          E V E N   D E A D   I 'M   T H E   H E R O
 
-v1 Capabilities & Tools
 
-The system leverages a robust local function-calling architecture powered directly by the offline model:
+EDITH (Even Dead I'm The Hero) is an advanced, fully offline, privacy-first personal AI assistant and system agent engineered exclusively for the Windows operating system. Operating directly on your machine's hardware, EDITH coordinates complex desktop automations, intelligent voice interaction, and system controls without transmitting a single byte of data to the cloud.
 
-1. Advanced Voice Pipeline
+No external APIs. No corporate tracking. No network dependencies. Just raw, unthrottled local processing powered directly by your local GPU.
 
-Mathematical VAD (Voice Activity Detection): Instead of heavy, compilation-error-prone external packages, EDITH uses sounddevice and numpy to measure real-time audio signals using the Euclidean L2 Norm to detect silence and automatically stop recording when you finish speaking.
+## Watch EDITH in Action
 
-Mathematical L2 Norm calculation formula for voice amplitude:
+Since EDITH runs fully offline, voice activation and local reasoning occur with lightning-fast execution times.
+
+Core Operational Modules
+
+⚠️ Vision Hub: Dynamic Screen Diagnostics [MAINTENANCE / COMING SOON]
+
+Status: Temporarily Disabled for Local Optimization > We are currently refactoring the offline computer vision pipeline to support lightweight multimodal vision models seamlessly. The active window inspection tool is undergoing local optimization and will return in the upcoming minor release.
+
+Acoustic Engine: L2-Norm Voice Activity Detection
+
+Rather than running heavy background processes, our specialized acoustic layer samples incoming audio streams in 100ms fragments. Once speaking drops below the ambient noise threshold, the recorder shuts down instantly, transmitting the raw PCM vector to Llama 3.1.
+
+Under the Hood: Key Capabilities & Local Tools
+
+EDITH coordinates hardware inputs and local software triggers through a highly optimized function-calling interface:
+
+Subsystem
+
+Underlying Technology
+
+Primary Responsibility
+
+Acoustic Pipe
+
+Sounddevice / Pyttsx3 / Numpy
+
+Real-time L2-Norm audio sampling, local speech synthesis, automatic voice gateway closures.
+
+Automation Engine
+
+Python Shell Abstraction
+
+Direct execution of PowerShell / CMD scripts, automated application launching.
+
+Memory Matrix
+
+SQLite / Semantic Parser
+
+Persistent indexing of user preferences, rules, and notes with secure local query execution.
+
+Vision Hub (Paused)
+
+PyAutoGUI / Pillow
+
+Undergoing migration to local multimodal infrastructure.
+
+1. Offline Voice Pipeline
+
+The VAD module processes raw digital audio streams without external libraries. It calculates the Euclidean L2 Norm of audio packets in 100ms chunks:
 
 $$V_{\text{norm}} = \frac{\|\mathbf{x}\| \times 10}{\sqrt{N}}$$
 
-Where $\mathbf{x}$ represents the captured real-time audio vector and $N$ represents the sample size.
+Where $\mathbf{x}$ represents the captured real-time audio vector and $N$ represents the sample size. If $V_{\text{norm}}$ remains below the silence threshold $\tau$ for a sustained duration, the buffer is finalized and sent directly to Ollama.
 
-Offline TTS (Text-to-Speech): Responses are converted into natural speech locally and instantly using the Windows native pyttsx3 engine without requiring internet connectivity.
+2. Desktop Automation & System Integrations
 
-2. Vision Hub (Screen Perception)
+Smart WhatsApp Dispatch: Automatically resolves contacts semantically (e.g., "Mom") in your local database without demanding a phone number. Drafts or sends automatically based on intent indicators (send_now).
 
-Active Window Analysis: The analyze_screen tool captures the currently focused window, code editor error lines, or visual layouts to diagnose issues locally.
+Context-Aware Calendar & Reminders: Converts relative human time references (e.g., "tomorrow evening", "next Friday at noon") into precise standard ISO-8601 timestamps relative to the local clock.
 
-Secure Temporary Buffering: Screen captures are temporarily cached on the local drive as temp_screen.png and are permanently deleted immediately after the local LLM finishes its inference.
+Secure Shell execution (shell_run): Interacts safely with CMD/PowerShell to explore directories, execute local automation, and read configurations.
 
-3. Smart WhatsApp Automation (send_whatsapp_message)
-
-Semantic Contact Lookup: Automatically searches the local contact database using name/query when a direct phone number is not supplied by the user.
-
-Direct Dispatch: If explicit sending commands are detected ("send immediately", "send now", "mail it"), it flags send_now=true and dispatches the message without requiring extra confirmations.
-
-Draft Handling: When asked to prepare a draft ("write but do not send"), the tool flags send_now=false and prepares the message as a draft.
-
-4. Calendar, Reminder & Agenda Management
-
-Natural Language to ISO Date Conversion: Converts relative time expressions like "next Tuesday at 2 PM" into standard ISO date/time formats based on the current system time.
-
-Agenda Management Suite: Adds reminders (add_reminder), appends calendar entries (add_calendar_event), and purges entries (delete_calendar_event) from the local calendar database.
-
-5. Media & Entertainment Control (play_media)
-
-Integrated with Spotify, YouTube, and Apple Music. Parses queries and launches playback within the chosen provider with autoplay=true enabled.
-
-6. YouTube Channel & Content Analytics (get_youtube_channel_report)
-
-Fetches public YouTube metrics, views, and growth patterns, outputting concise natural language summaries locally.
-
-7. Secure Shell Runner (shell_run)
-
-Controls the Windows command line (CMD/PowerShell) through a secure abstraction layer. Enables listing directories, validating file paths, and executing local automation scripts.
-
-8. Persistent Local Memory Layer
-
-Saves important user preferences, active projects, and personal notes into a local SQLite database via save_memory, allowing semantically matching records to be removed via delete_memory.
+Persistent Local Memory: Quietly remembers details about you (projects, preferences, guidelines) using a local SQLite database, allowing you to delete records semantically at any time.
 
 System Architecture
 
 Text-Based Schematic
 
                          [ User ]
-                            | (Microphone / Screen)
+                            | (Microphone Input)
                             v
                  [ Input & Signal Layer ]
-               (L2-Norm VAD / Screenshot)
+                     (L2-Norm VAD)
                             |
                             v
               [ Core Processing Engine (LLM) ]
@@ -84,7 +109,7 @@ Text-Based Schematic
 Flowchart Visualization
 
 graph TD
-    User[User] -->|Microphone / Screen| InputLayer[Input & Signal Layer <br> L2-Norm VAD Analysis & Screenshots]
+    User[User] -->|Microphone| InputLayer[Input & Signal Layer <br> L2-Norm VAD Analysis]
     InputLayer --> CoreLLM[Core Processing Engine LLM <br> Ollama Server - Llama 3.1:latest Model]
     CoreLLM --> Intent[Intent Analysis <br> Natural Language Response]
     CoreLLM --> ToolCalling[Tool Calling / Function Calling]
@@ -96,17 +121,19 @@ graph TD
     ToolCalling --> Tool5[Persistent Local Memory SQLite]
 
 
-Installation Steps
+Installation & Setup
+
+Before installing, ensure that your local system complies with the minimum hardware specifications to process Llama 3.1 local inference comfortably.
 
 1. Prerequisites
 
-Python 3.10 or higher must be installed on your system.
+Python 3.10+ must be configured on your system path.
 
-Ollama Core must be installed and running in the background.
+Ollama Core must be installed and running as a local service.
 
-Pull the correct model required for the v1 core:
+Fetch the default Llama 3.1 model locally:
 
-ollama pull llama3.1:latest
+    ollama pull llama3.1:latest
 
 
 2. Clone the Repository
@@ -115,81 +142,26 @@ git clone [https://github.com/Tiyatrotist/E.D.I.T.H.git](https://github.com/Tiya
 cd EDITH
 
 
-3. Virtual Environment Setup
+3. Install Dependencies
 
-To avoid dependency conflicts with global packages, always run the project inside an isolated .venv:
-
-# Create virtual environment
-python -m venv .venv
-
-# Activate the virtual environment (Windows)
-.\.venv\Scripts\activate
-
-
-4. Install Dependencies
-
-Install all necessary packages via pip while the virtual environment is active:
-
-pip install -r requirements.txt
+       pip install -r requirements.txt
 
 
 Requirements (requirements.txt)
 
-Save the following package list as requirements.txt inside your project directory to run the installation step above:
-
-# --- EDITH Core Dependencies ---
-ollama>=0.2.1
-requests>=2.31.0
-
-# --- Voice Pipeline & Signal Processing ---
-sounddevice>=0.4.6
-numpy>=1.24.3
-pyttsx3>=2.90
-
-# --- Vision Hub & Screen Automation ---
-PyAutoGUI>=0.9.54
-Pillow>=9.5.0
-
-# --- Datetime & Automation Helpers ---
-python-dateutil>=2.8.2
-pytz>=2023.3
-
-
 Running the Assistant
 
-Because EDITH runs 100% locally, you do not need any API keys or complex environment setups. Just run the main script to start the interface:
+Start the main assistant interface directly through your command shell:
 
-python main.py
+    python main.py
 
-
-Gitignore Configuration
-
-To prevent temporary data, logs, and environments from cluttering your repository, configure your .gitignore file as follows:
-
-# Virtual Environments and Packages
-.venv/
-env/
-venv/
-ENV/
-
-# Python Cache & Compiled Files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Temporary Media Buffers (Privacy Protection)
-temp_screen.png
-input.wav
-
-# Local Database & Environments
-local_memory.db
-.env
 
 
 Future Roadmap (v2.0 Plans)
 
 Model Upgrades: Transitioning to newer, lightweight local models (gemma4:e4b, etc.) to improve inference efficiency.
+
+Vision Integration Refactoring: Activating the multimodal dynamic frame processing module via local micro-models.
 
 Mechatronics System Integration: Implementing a telemetry interpreter module over local serial ports (UART) for fixed-wing UAV projects.
 
@@ -200,5 +172,3 @@ License
 This project is licensed under the MIT License.
 
 Developer: Tiyatrotist — May 2026
-
-eof
