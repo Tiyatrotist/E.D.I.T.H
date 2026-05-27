@@ -1,0 +1,52 @@
+{
+  "conversation_history": {
+    "short_history": {
+      "value": "User said thanks to the app and mentioned reminder or event"
+    }
+  },
+  "notes": {
+    "cat_name": {
+      "value": "Pamuk"
+    },
+    "video_to_watch_later": {
+      "value": "this video's title"
+    },
+    "conversation_history/short_history": {
+      "value": "user said they wanted to learn about culture and mentioned not wanting to be a Muslim"
+    }
+  },
+  "preferences": {
+    "favorite_songs": {
+      "value": [
+        "Baby Doll",
+        "Tame Impala - Let It Happen"
+      ]
+    },
+    "last_played_song": {
+      "value": "Babydoll by Dominic Fike"
+    },
+    "music_preference": {
+      "value": "Baby Doll"
+    }
+  },
+  "conversations": {
+    "good_wishes": {
+      "value": "User expressed appreciation and good wishes multiple times"
+    },
+    "good_wishes_count": {
+      "value": 1
+    }
+  },
+  "conversations/good_wishes": {
+    "user_good_wishes_count": {
+      "value": 1
+    }
+  },
+  "whatsapp_contacts": {
+    "kerem": {
+      "value": "+905056184007",
+      "display_name": "Kerem",
+      "aliases": []
+    }
+  }
+}
