@@ -10,7 +10,7 @@
 
           E V E N   D E A D   I 'M   T H E   H E R O
 
-# ⚠️DON'T FORGET EDITH IS STILL IN PRE-RELEASE⚠️
+# ⚠️DON'T FORGET EDITH IS STILL IN PRE-RELEASE
 
 EDITH (Even Dead I'm The Hero) is an advanced, fully offline, privacy-first personal AI assistant and system agent engineered exclusively for the Windows operating system. Operating directly on your machine's hardware, EDITH coordinates complex desktop automations, intelligent voice interaction, and system controls without transmitting a single byte of data to the cloud.
 
