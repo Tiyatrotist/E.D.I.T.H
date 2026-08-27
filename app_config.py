@@ -69,3 +69,79 @@ def get_app_config_value(key: str, default=None):
 def has_gemini_api_key() -> bool:
     value = str(get_app_config_value("gemini_api_key", "") or "").strip()
     return bool(value)
+
+
+# Numeric config keys with their expected types, used by validate_app_config.
+_INT_KEYS = (
+    "tts_rate",
+    "tts_volume",
+    "ollama_temperature",
+    "ollama_top_k",
+    "ollama_top_p",
+    "ui_typewriter_delay_ms",
+    "ui_compact_width",
+    "ui_compact_height",
+    "ui_compact_margin",
+)
+_BOOL_KEYS = (
+    "offline_mode",
+    "tts_enabled",
+    "stt_enabled",
+    "wake_listener_enabled",
+    "ui_typewriter_enabled",
+    "ui_start_compact",
+)
+
+
+def validate_app_config(config=None) -> list[str]:
+    """Validate the local app configuration without starting the LLM or
+    contacting any live service.
+
+    Returns a list of actionable error messages (empty list = valid).
+    Secret values (API keys) are never printed; only their presence is checked.
+    """
+    if config is None:
+        config = load_app_config()
+
+    errors: list[str] = []
+
+    # Required API keys — report presence only, never the value.
+    if not str(config.get("gemini_api_key", "") or "").strip():
+        errors.append(
+            "gemini_api_key is missing or empty. Add it to config/api_keys.json "
+            "(or set online mode) before starting the assistant."
+        )
+    if not str(config.get("youtube_api_key", "") or "").strip() and config.get(
+        "youtube_channel_handle"
+    ):
+        errors.append(
+            "youtube_api_key is missing but youtube_channel_handle is set; "
+            "YouTube stats actions will fail."
+        )
+
+    # Numeric fields must be int/float (bool excluded).
+    for key in _INT_KEYS:
+        value = config.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int | float)):
+            errors.append(
+                f"{key} must be a number, got {type(value).__name__} "
+                f"(value: {str(value)[:20]})"
+            )
+
+    # Boolean fields must be real booleans.
+    for key in _BOOL_KEYS:
+        value = config.get(key)
+        if value is not None and not isinstance(value, bool):
+            errors.append(
+                f"{key} must be true or false, got {type(value).__name__} "
+                f"(value: {str(value)[:20]})"
+            )
+
+    # Ollama URL must parse as http(s) when offline mode expects it.
+    url = str(config.get("ollama_api_url", "") or "").strip()
+    if url and not url.startswith(("http://", "https://")):
+        errors.append(
+            f"ollama_api_url must start with http:// or https://, got {url[:40]!r}"
+        )
+
+    return errors
