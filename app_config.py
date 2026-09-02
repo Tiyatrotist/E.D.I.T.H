@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import copy
+import os
 from pathlib import Path
 
 
@@ -212,6 +213,44 @@ def load_app_config() -> dict:
                         config["providers"]["gemini"] = gemini_cfg
     except Exception as e:
         print(f"[AppConfig] ⚠️ Config yükleme hatası: {e}")
+
+    # ── .env ve İşletim Sistemi Ortam Değişkenleri ile Güvenli Enjeksiyon ──
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(BASE_DIR / ".env")
+    except Exception:
+        pass
+
+    env_mappings = {
+        "GEMINI_API_KEY": ("gemini", "api_key"),
+        "GROQ_API_KEY": ("groq", "api_key"),
+        "NIM_API_KEY": ("nim", "api_key"),
+        "NVIDIA_API_KEY": ("nim", "api_key"),
+        "MISTRAL_API_KEY": ("mistral", "api_key"),
+        "COHERE_API_KEY": ("cohere", "api_key"),
+        "OPENROUTER_API_KEY": ("openrouter", "api_key"),
+        "OPENAI_API_KEY": ("openai", "api_key"),
+        "ANTHROPIC_API_KEY": ("anthropic", "api_key"),
+        "DEEPSEEK_API_KEY": ("deepseek", "api_key"),
+    }
+    for env_var, (pname, field) in env_mappings.items():
+        val = os.environ.get(env_var)
+        if val:
+            p_cfg = config.setdefault("providers", {}).setdefault(pname, {})
+            p_cfg[field] = val
+            p_cfg["enabled"] = True
+
+    if os.environ.get("DISCORD_BOT_TOKEN"):
+        config.setdefault("discord", {})["bot_token"] = os.environ.get("DISCORD_BOT_TOKEN")
+        config["discord"]["enabled"] = True
+
+    if os.environ.get("HUGGINGFACE_API_KEY"):
+        config["huggingface_api_key"] = os.environ.get("HUGGINGFACE_API_KEY")
+    if os.environ.get("PEXELS_API_KEY"):
+        config["pexels_api_key"] = os.environ.get("PEXELS_API_KEY")
+    if os.environ.get("PIXABAY_API_KEY"):
+        config["pixabay_api_key"] = os.environ.get("PIXABAY_API_KEY")
+
     return config
 
 
