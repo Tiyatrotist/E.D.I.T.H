@@ -31,13 +31,14 @@ from discord_bot.voice_engine import DiscordVoiceEngine
 class EdithDiscordBot:
     """EDITH Discord İstemcisi."""
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, privileged_intents: bool = True):
         self.token = token
         self.cfg = load_app_config().get("discord", {})
         self.text_engine = DiscordTextEngine()
 
         intents = discord.Intents.default()
-        intents.message_content = True
+        if privileged_intents:
+            intents.message_content = True
         intents.voice_states = True
 
         self.bot = commands.Bot(command_prefix="/", intents=intents)
@@ -145,8 +146,15 @@ def start_discord_bot_background(token: str = "") -> None:
     def _run():
         print("[DiscordBot] 🚀 Discord Bot başlatılıyor...")
         try:
-            bot_instance = EdithDiscordBot(bot_token)
+            bot_instance = EdithDiscordBot(bot_token, privileged_intents=True)
             bot_instance.run()
+        except discord.errors.PrivilegedIntentsRequired:
+            print("[DiscordBot] ⚠️ Message Content Intent henüz açık değil, temel modda bağlanılıyor...")
+            try:
+                bot_instance = EdithDiscordBot(bot_token, privileged_intents=False)
+                bot_instance.run()
+            except Exception as ex:
+                print(f"[DiscordBot] ❌ Bot temel modda da başlatılamadı: {ex}")
         except Exception as e:
             print(f"[DiscordBot] ❌ Bot çalışma hatası: {e}")
 
