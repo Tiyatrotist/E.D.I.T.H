@@ -37,3 +37,17 @@ Look for issues labeled `good first issue` or `help wanted`. Documentation fixes
 ## Code quality
 
 Please keep changes readable and consistent with the existing Python codebase. Do not add generated files, caches, credentials, or local environment files to commits.
+
+### Offline configuration tests
+
+From the repository root, run:
+
+```sh
+python -B -m unittest discover -s tests -v
+```
+
+Use Python 3.10 or later (`python3` on systems where that is the Python command).
+These focused tests use only the standard library, synthetic configuration values,
+and a mocked configuration loader. They do not read your local settings, start
+the assistant, require audio hardware, or contact live services. No runtime
+dependencies or API credentials need to be installed for this suite.
