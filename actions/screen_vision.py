@@ -1,35 +1,34 @@
 """
-Ekran görüntüsü analizi — Windows için yerel Ollama vision desteği.
+actions/screen_vision.py — Çok Sağlayıcılı Ekran Görüntüsü Analizi
+
+MSS ile aktif pencere veya tam ekran görüntüsünü alır ve LLMPool
+(Ollama, Gemini, GPT-4o, Claude) vision yeteneğiyle analiz eder.
+
+Debug: Ekran görüntüsü boyutu ve analiz modeli loglanır.
 """
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import ctypes
 import io
 import tempfile
+import time
 from pathlib import Path
 
-import httpx
 from PIL import Image, ImageStat
 
 from app_config import get_app_config_value
+from local_llm import LocalLLMClient
 
 try:
     import mss
     import mss.tools
-
     HAS_MSS = True
 except ImportError:
     HAS_MSS = False
 
-
-VISION_MODELS = (
-    "llama3.2-vision",
-    "llava",
-    "qwen2.5-vl",
-    "phi3.5-vision",
-)
 VISION_MAX_DIMENSION = 1800
 VISION_MAX_INLINE_BYTES = 5_500_000
 
@@ -48,7 +47,7 @@ def _get_active_window_title() -> str:
 
 
 def _capture_active_window() -> tuple[bool, str, str]:
-    """Ekran görüntüsü al. (ok, file_path, window_title) döndürür."""
+    """Ekran görüntüsü alır. (ok, file_path, window_title) döndürür."""
     if not HAS_MSS:
         return False, "mss kütüphanesi kurulu değil. 'pip install mss' ile kur.", ""
 
@@ -63,9 +62,7 @@ def _capture_active_window() -> tuple[bool, str, str]:
         return False, f"Ekran görüntüsü alınamadı: {exc}", ""
 
     try:
-        handle = tempfile.NamedTemporaryFile(
-            prefix="edith-screen-", suffix=".png", delete=False
-        )
+        handle = tempfile.NamedTemporaryFile(prefix="edith-screen-", suffix=".png", delete=False)
         tmp_path = Path(handle.name)
         handle.close()
         img.save(str(tmp_path), format="PNG")
@@ -134,162 +131,14 @@ def _vision_prompt(query: str, window_title: str) -> str:
     )
 
 
-def _extract_response_text(response: dict) -> str:
-    message = response.get("message", {})
-    if isinstance(message, dict):
-        text = str(message.get("content", "") or "").strip()
-        if text:
-            return text
-
-    text = str(response.get("response", "") or "").strip()
-    if text:
-        return text
-
-    parts = response.get("parts", [])
-    if isinstance(parts, list):
-        chunks = []
-        for part in parts:
-            if isinstance(part, dict):
-                value = str(part.get("text", "") or "").strip()
-                if value:
-                    chunks.append(value)
-        if chunks:
-            return "\n".join(chunks).strip()
-
-    return ""
-
-
-def _is_transient_vision_error(exc: Exception) -> bool:
-    message = str(exc or "").lower()
-    transient_markers = (
-        "503",
-        "429",
-        "deadline",
-        "timed out",
-        "timeout",
-        "unavailable",
-        "service unavailable",
-        "internal error",
-        "busy",
-        "overloaded",
-        "resource exhausted",
-        "try again later",
-        "backend error",
-        "connection reset",
-    )
-    return any(marker in message for marker in transient_markers)
-
-
-def _is_quota_vision_error(exc: Exception) -> bool:
-    message = str(exc or "").lower()
-    quota_markers = (
-        "quota",
-        "rate limit",
-        "resource exhausted",
-        "too many requests",
-        "quota exceeded",
-        "limit exceeded",
-        "billing",
-    )
-    return any(marker in message for marker in quota_markers)
-
-
-def _friendly_vision_error(exc: Exception) -> str:
-    if _is_quota_vision_error(exc):
-        return "Yerel vision isteği kota veya hız limitine takıldı. Biraz bekleyip tekrar dene ya da model ayarını kontrol et."
-    if _is_transient_vision_error(exc):
-        return "Yerel vision servisi şu anda yoğun veya geçici olarak ulaşılamıyor. Biraz sonra tekrar dene."
-    return f"Ekran analizi başarısız oldu: {exc}"
-
-
-def _vision_model_candidates() -> list[str]:
-    candidates: list[str] = []
-
-    configured = str(get_app_config_value("ollama_vision_model", "") or "").strip()
-    if configured:
-        candidates.append(configured)
-
-    ollama_model = str(get_app_config_value("ollama_model", "") or "").strip()
-    lowered = ollama_model.lower()
-    if ollama_model and ("vision" in lowered or "llava" in lowered or "vl" in lowered):
-        candidates.append(ollama_model)
-
-    for model in VISION_MODELS:
-        if model and model not in candidates:
-            candidates.append(model)
-
-    return candidates
-
-
-def _analyze_with_ollama(query: str, image_path: Path, window_title: str) -> str:
-    api_url = str(get_app_config_value("ollama_api_url", "http://localhost:11434") or "").strip()
-    if not api_url:
-        api_url = "http://localhost:11434"
-
-    prompt = _vision_prompt(query, window_title)
-    image_b64, _mime_type = _encode_image_base64(image_path)
-    system_instruction = (
-        "Sen EDITH için çalışan yerel bir ekran analiz modelisin. "
-        "Türkçe, net ve kısa cevap ver. Uydurma yapma."
-    )
-
-    candidates = _vision_model_candidates()
-    retry_delays = (0.9, 1.8, 3.0)
-    last_error: Exception | None = None
-
-    with httpx.Client(timeout=120) as client:
-        for model_name in candidates:
-            payload = {
-                "model": model_name,
-                "stream": False,
-                "messages": [
-                    {"role": "system", "content": system_instruction},
-                    {
-                        "role": "user",
-                        "content": prompt,
-                        "images": [image_b64],
-                    },
-                ],
-                "options": {
-                    "temperature": 0.2,
-                    "num_predict": 512,
-                },
-            }
-
-            for attempt, delay in enumerate(retry_delays, start=1):
-                try:
-                    response = client.post(f"{api_url}/api/chat", json=payload)
-                    if response.status_code == 404:
-                        last_error = RuntimeError(f"Vision model bulunamadı: {model_name}")
-                        break
-                    response.raise_for_status()
-                    data = response.json()
-                    merged = _extract_response_text(data)
-                    if merged:
-                        return merged
-                    raise RuntimeError("Yerel vision modeli geçerli bir yanıt döndürmedi.")
-                except Exception as exc:
-                    last_error = exc
-                    if attempt < len(retry_delays) and _is_transient_vision_error(exc):
-                        import time
-
-                        time.sleep(delay)
-                        continue
-                    if _is_transient_vision_error(exc):
-                        break
-                    if response := getattr(exc, "response", None):
-                        status_code = getattr(response, "status_code", None)
-                        if status_code == 404:
-                            break
-                    if "404" in str(exc):
-                        break
-                    raise RuntimeError(_friendly_vision_error(exc)) from exc
-
-    assert last_error is not None
-    raise RuntimeError(_friendly_vision_error(last_error))
-
-
 def analyze_screen(query: str, target: str = "active_window") -> str:
+    """
+    Ekran görüntüsü alır ve LLMPool vision desteğiyle analiz eder.
+
+    Args:
+        query: Kullanıcının ekranla ilgili sorusu
+        target: active_window veya full_screen
+    """
     if not HAS_MSS:
         return (
             "Ekran analizi için 'mss' kütüphanesi gerekiyor. "
@@ -302,24 +151,37 @@ def analyze_screen(query: str, target: str = "active_window") -> str:
 
     image_path = Path(result)
     try:
-        if not image_path.exists():
-            return "Ekran görüntüsü dosyası bulunamadı. Tekrar dene."
-        if image_path.stat().st_size <= 0:
+        if not image_path.exists() or image_path.stat().st_size <= 0:
             return "Ekran görüntüsü boş geldi."
         if _image_looks_blank(image_path):
             return "Ekran görüntüsü siyah veya boş görünüyor."
 
+        prompt = _vision_prompt(query, window_title)
+        image_b64, mime_type = _encode_image_base64(image_path)
+
+        print(f"[ScreenVision] 📸 Ekran görüntüsü analiz ediliyor ({window_title or 'Ekran'})")
+
+        client = LocalLLMClient()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            analysis = _analyze_with_ollama(query, image_path, window_title)
-        except Exception as exc:
-            prefix = window_title.strip()
-            if prefix:
-                return f"Ekran görüntüsü alındı ({prefix}) ama analiz tamamlanamadı: {exc}"
-            return f"Ekran görüntüsü alındı ama analiz tamamlanamadı: {exc}"
+            analysis = loop.run_until_complete(
+                client.generate_vision(
+                    prompt=prompt,
+                    image_b64=image_b64,
+                    system="Sen EDITH ekran analiz asistanısın. Türkçe, net ve eksiksiz cevap ver.",
+                    mime_type=mime_type,
+                )
+            )
+        finally:
+            loop.close()
 
         if window_title:
             return f"[Aktif pencere: {window_title}]\n{analysis}"
         return analysis
+
+    except Exception as exc:
+        return f"Ekran analizi başarısız oldu: {exc}"
     finally:
         try:
             if image_path.exists():

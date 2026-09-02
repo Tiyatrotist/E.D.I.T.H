@@ -1,39 +1,50 @@
 # Contributing to E.D.I.T.H
 
-Thank you for your interest in contributing to E.D.I.T.H.
+Thank you for your interest in contributing to **E.D.I.T.H**!
 
-E.D.I.T.H is a privacy-first, local-first AI assistant for Windows. Contributions should preserve the project's offline-first design and avoid introducing unnecessary cloud dependencies.
+E.D.I.T.H is an advanced, privacy-first personal AI assistant and desktop agent for Windows. Contributions should preserve the project's flexible design, clean documentation, and robust offline capabilities while expanding its multi-provider capabilities.
 
-## Before you start
+---
 
-1. Read the README and existing issues.
-2. Check whether an issue already exists for your change.
-3. For larger changes, open an issue before submitting a pull request.
-4. Keep pull requests focused on one change.
+## 🎯 Ways to Contribute
 
-## Development principles
+We welcome contributions across various areas:
+1. **Drop-in Plugins:** Build and share new plugins in the `plugins/` folder (see [PLUGINS.md](PLUGINS.md)).
+2. **Action Modules:** Enhance built-in tools in `actions/` (automation, vision, hardware, communication).
+3. **LLM Providers:** Extend `core/llm_pool.py` with support for additional inference backends.
+4. **Testing & QA:** Write automated tests for tools, date parsers, and API fallback chains.
+5. **UI & Web Dashboard:** Improve the CustomTkinter desktop interface or the FastAPI web control panel.
+6. **Documentation:** Refine setup guides, docstrings, and translation files.
 
-- Prefer local processing and privacy-preserving designs.
-- Avoid hard-coded secrets, tokens, personal paths, or machine-specific configuration.
-- Keep platform-specific behavior explicit.
-- Add or update tests when practical.
-- Preserve backward compatibility unless a breaking change is intentional and documented.
+---
 
-## Pull requests
+## 📋 Development Principles
 
-A good pull request should explain:
+- **Clean & Documented Code:** Every module should have clear docstrings, type annotations where practical, and informative debug logs.
+- **Privacy-First:** Never commit credentials, personal phone numbers, machine-specific paths, or secret keys.
+- **Safe Execution:** Keep shell commands, file modifications, and automation boundaries safe and predictable.
+- **Cross-Provider Compatibility:** Features should work with both local models (Ollama) and cloud APIs (Gemini, OpenAI, Claude).
 
-- what changed;
-- why it changed;
-- how it was tested;
-- any platform or dependency considerations.
+---
 
-Small documentation, testing, typing, reliability, accessibility, and developer-experience improvements are welcome.
+## 🚀 Pull Request Workflow
 
-## Good first contributions
+1. Fork the repository and create a feature branch (`git checkout -b feature/my-new-tool`).
+2. Implement your changes following existing code conventions.
+3. Test your changes locally (`python main.py` or isolated module verification).
+4. Commit your changes with clear messages (`git commit -m 'feat: add exchange rate plugin'`).
+5. Push to your branch and open a Pull Request.
 
-Look for issues labeled `good first issue` or `help wanted`. Documentation fixes, test coverage, type annotations, CI improvements, and isolated action modules are especially suitable starting points.
+---
 
-## Code quality
+## 🧪 Testing Guidelines
 
-Please keep changes readable and consistent with the existing Python codebase. Do not add generated files, caches, credentials, or local environment files to commits.
+Verify that all modules load properly before submitting PRs:
+```bash
+python -c "
+from core.llm_pool import LLMPool
+from core.plugin_loader import discover_plugins
+from actions.web_search import web_search
+print('Verification passed!')
+"
+```
