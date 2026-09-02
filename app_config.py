@@ -98,7 +98,8 @@ def validate_app_config(config=None) -> list[str]:
     contacting any live service.
 
     Returns a list of actionable error messages (empty list = valid).
-    Secret values (API keys) are never printed; only their presence is checked.
+    Raw configuration values are never included in errors. A credential may
+    accidentally be pasted into any field, not only an API-key field.
     """
     if config is None:
         config = load_app_config()
@@ -124,8 +125,7 @@ def validate_app_config(config=None) -> list[str]:
         value = config.get(key)
         if value is not None and (isinstance(value, bool) or not isinstance(value, int | float)):
             errors.append(
-                f"{key} must be a number, got {type(value).__name__} "
-                f"(value: {str(value)[:20]})"
+                f"{key} must be a number, got {type(value).__name__}."
             )
 
     # Boolean fields must be real booleans.
@@ -133,15 +133,14 @@ def validate_app_config(config=None) -> list[str]:
         value = config.get(key)
         if value is not None and not isinstance(value, bool):
             errors.append(
-                f"{key} must be true or false, got {type(value).__name__} "
-                f"(value: {str(value)[:20]})"
+                f"{key} must be true or false, got {type(value).__name__}."
             )
 
     # Ollama URL must parse as http(s) when offline mode expects it.
     url = str(config.get("ollama_api_url", "") or "").strip()
     if url and not url.startswith(("http://", "https://")):
         errors.append(
-            f"ollama_api_url must start with http:// or https://, got {url[:40]!r}"
+            "ollama_api_url must start with http:// or https://."
         )
 
     return errors
