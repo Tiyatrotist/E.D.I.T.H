@@ -65,6 +65,11 @@ api_keys.json
 *.key
 *.token
 
+# Models and heavy weights
+models/
+*.onnx
+*.onnx.json
+
 # Local guides / private notes
 FREE_SERVER_DEPLOYMENT.md
 private_*.md

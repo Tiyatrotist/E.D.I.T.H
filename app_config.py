@@ -91,6 +91,14 @@ DEFAULT_PROVIDERS = {
         "temperature": 0.7,
         "max_tokens": 2048,
     },
+    "cohere": {
+        "enabled": False,
+        "api_key": "",
+        "api_url": "https://api.cohere.com/v2",
+        "model": "command-r-plus-08-2024",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+    },
     "local_openai": {
         "enabled": False,
         "api_url": "http://localhost:1234/v1",

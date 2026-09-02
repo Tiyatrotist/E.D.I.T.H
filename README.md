@@ -12,7 +12,7 @@
           E V E N   D E A D   I ' M   T H E   H E R O
 ```
 
-**EDITH (Even Dead I'm The Hero)** is an advanced, privacy-first, multimodal personal AI assistant and desktop agent engineered for Windows. Featuring a **Multi-Provider LLM Pool** (Ollama, Gemini, OpenAI, Claude, Groq, DeepSeek), **Faster-Whisper Speech Recognition**, **Edge-TTS**, a **Drop-In Plugin Architecture**, a **FastAPI Web Dashboard**, an **Android Companion Phone Bridge**, and a **Human-like Discord Bot**.
+**EDITH (Even Dead I'm The Hero)** is an advanced, privacy-first, multimodal personal AI assistant and desktop agent engineered for Windows. Featuring a **Multi-Provider LLM Pool** (Ollama, Gemini, OpenAI, Claude, Groq, DeepSeek, NVIDIA NIM), **Faster-Whisper Speech Recognition**, **Piper Neural TTS (Offline Female Voice)**, a **Drop-In Plugin Architecture**, a **FastAPI Web Dashboard**, an **Android Companion Phone Bridge**, and a **Human-like Discord Bot**.
 
 ---
 
@@ -55,7 +55,7 @@
                  ▼                                                               ▼
   ┌─────────────────────────────┐                                 ┌─────────────────────────────┐
   │   Tool & Plugin Execution   │                                 │      Response & Audio       │
-  │  - Desktop & Window Control │                                 │  - Edge-TTS Voice Output    │
+  │  - Desktop & Window Control │                                 │  - Piper TTS Female Voice   │
   │  - Code Helper & Dev Agent  │                                 │  - UI Waveform Animation    │
   │  - Web Search & News        │                                 │  - Web/Discord Socket Feed  │
   │  - Plugins/ directory       │                                 └─────────────────────────────┘

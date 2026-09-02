@@ -49,7 +49,13 @@ ollama pull llama3.1
 ollama pull llama3.2-vision  # Optional: For offline visual screen inspection
 ```
 
-### Step 5: Launch EDITH
+### Step 5: Piper Neural TTS (High-Quality Female Voice)
+EDITH utilizes **Piper Neural TTS** for fast, 100% offline, natural voice synthesis. 
+- **Default Turkish Voice:** `tr_TR-dfki-medium` (Natural female voice)
+- **Default English Voice:** `en_US-amy-medium` (Natural female voice)
+The voice models (~25MB) are automatically downloaded to `models/piper/` on the first spoken interaction. Zero manual configuration required!
+
+### Step 6: Launch EDITH
 ```bash
 python main.py
 ```

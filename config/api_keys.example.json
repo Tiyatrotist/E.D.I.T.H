@@ -1,6 +1,87 @@
 {
-  "gemini_api_key": "",
-  "voice": "Charon",
-  "youtube_api_key": "",
-  "youtube_channel_handle": ""
+    "active_provider": "gemini",
+    "fallback_chain": [
+        "gemini",
+        "groq",
+        "nim",
+        "mistral",
+        "cohere",
+        "openrouter",
+        "ollama"
+    ],
+    "language": "tr",
+    "offline_mode": false,
+    "providers": {
+        "gemini": {
+            "enabled": true,
+            "api_key": "YOUR_GEMINI_API_KEY",
+            "model": "gemini-3.6-flash",
+            "vision_model": "gemini-3.6-flash",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "groq": {
+            "enabled": true,
+            "api_key": "YOUR_GROQ_KEY",
+            "api_url": "https://api.groq.com/openai/v1",
+            "model": "qwen/qwen3.6-27b",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "nim": {
+            "enabled": true,
+            "api_key": "YOUR_NVIDIA_NIM_KEY",
+            "api_url": "https://integrate.api.nvidia.com/v1",
+            "model": "meta/llama-3.2-11b-vision-instruct",
+            "vision_model": "meta/llama-3.2-11b-vision-instruct",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "mistral": {
+            "enabled": true,
+            "api_key": "YOUR_MISTRAL_KEY",
+            "api_url": "https://api.mistral.ai/v1",
+            "model": "mistral-large-latest",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "cohere": {
+            "enabled": true,
+            "api_key": "YOUR_COHERE_KEY",
+            "api_url": "https://api.cohere.com/v2",
+            "model": "command-r-plus-08-2024",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "openrouter": {
+            "enabled": true,
+            "api_key": "YOUR_OPENROUTER_KEY",
+            "api_url": "https://openrouter.ai/api/v1",
+            "model": "nvidia/nemotron-3.5-lightning:free",
+            "temperature": 0.7,
+            "max_tokens": 2048
+        },
+        "ollama": {
+            "enabled": true,
+            "api_url": "http://localhost:11434",
+            "model": "llama3.1",
+            "vision_model": "llama3.2-vision"
+        }
+    },
+    "tts_engine": "piper",
+    "tts_voice": "tr_TR-dfki-medium",
+    "tts_enabled": true,
+    "stt_enabled": true,
+    "stt_model": "small",
+    "discord": {
+        "enabled": false,
+        "bot_token": "YOUR_DISCORD_BOT_TOKEN",
+        "personality": "casual"
+    },
+    "phone_companion": {
+        "enabled": true,
+        "auto_answer": true,
+        "greeting": "Merhaba, ben EDITH, yapay zeka asistanıyım. Size nasıl yardımcı olabilirim?",
+        "ws_port": 8765
+    }
 }

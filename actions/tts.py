@@ -1,11 +1,17 @@
 """
-TTS (Text-to-Speech) — Windows için Pyttsx3 kullanır (kalite ve hız kontrol).
-Fallback olarak Windows SAPI kullanır.
+TTS (Text-to-Speech) — Öncelikli olarak Piper Neural TTS (Kadın Sesi) kullanır.
+Fallback olarak Pyttsx3 ve Windows SAPI'ya geçer.
 """
 
 import subprocess
 import threading
 import os
+
+try:
+    from actions.piper_tts import speak_piper, get_piper_voice
+    PIPER_AVAILABLE = True
+except ImportError:
+    PIPER_AVAILABLE = False
 
 try:
     import pyttsx3
@@ -16,16 +22,15 @@ except ImportError:
 
 def speak_text(text: str, on_done=None, blocking: bool = False, rate: int = None, volume: float = None, language: str = "tr"):
     """
-    Metni sesli olarak okur (Windows Pyttsx3 veya SAPI).
+    Metni sesli olarak okur (Piper TTS Kadın Sesi, Pyttsx3 veya SAPI).
     on_done: okuma bitince çağrılacak fonksiyon (opsiyonel)
     blocking: True ise bitene kadar bekler
-    rate: Konuşma hızı (50-300, varsayılan config'den alınır) — hızlı cevaplar için 150+
-    volume: Ses seviyesi (0.0-1.0, varsayılan config'den alınır)
-    language: "tr" veya "en" vb. (Dile göre en doğru sesi seçer)
+    rate: Konuşma hızı (50-300)
+    volume: Ses seviyesi (0.0-1.0)
+    language: "tr" veya "en"
     """
     from app_config import get_app_config_value
     
-    # Config'den rate ve volume al (parametre yoksa)
     if rate is None:
         rate = int(get_app_config_value("tts_rate", 150) or 150)
     if volume is None:
@@ -39,6 +44,16 @@ def speak_text(text: str, on_done=None, blocking: bool = False, rate: int = None
     max_len = 1000
     if len(text) > max_len:
         text = text[:max_len] + "..."
+
+    # 1. Öncelik: Piper Neural TTS (Kadın Sesi)
+    if PIPER_AVAILABLE:
+        try:
+            print(f"[TTS] Piper kadın sesi ile seslendiriliyor ({language}): {text[:50]}...")
+            success = speak_piper(text, language=language, blocking=blocking, on_done=on_done)
+            if success:
+                return
+        except Exception as e:
+            print(f"[TTS] Piper hatası: {e}, Pyttsx3'e geçiliyor...")
 
     def _run_pyttsx3():
         """Pyttsx3 ile oku (daha iyi kalite)"""

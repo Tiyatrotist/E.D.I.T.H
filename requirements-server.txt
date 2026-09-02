@@ -21,4 +21,6 @@ send2trash>=1.8.0
 # Discord Bot
 discord.py>=2.3.2
 PyNaCl>=1.5.0
+# Neural TTS & Audio
+piper-tts>=1.7.0
 edge-tts>=6.1.0

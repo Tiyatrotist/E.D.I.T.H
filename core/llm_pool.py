@@ -271,6 +271,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         "deepseek": "https://api.deepseek.com/v1",
         "together": "https://api.together.xyz/v1",
         "mistral": "https://api.mistral.ai/v1",
+        "cohere": "https://api.cohere.com/v2",
         "nim": "https://integrate.api.nvidia.com/v1",
         "nvidia": "https://integrate.api.nvidia.com/v1",
         "local_openai": "http://localhost:1234/v1",
@@ -698,7 +699,7 @@ class AnthropicProvider(BaseLLMProvider):
 # OpenAI-uyumlu provider'lar — hepsi aynı sınıfla farklı endpoint
 _OPENAI_COMPATIBLE_KEYS = {
     "openai", "groq", "openrouter", "deepseek",
-    "together", "mistral", "nim", "nvidia", "local_openai",
+    "together", "mistral", "cohere", "nim", "nvidia", "local_openai",
 }
 
 
