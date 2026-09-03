@@ -87,13 +87,16 @@ class PhoneBridge:
 
     def start_server(self):
         """WebSocket sunucusunu arka planda başlatır."""
+        async def _serve():
+            async with websockets.serve(self.handler, "0.0.0.0", self.port):
+                print(f"[PhoneBridge] 🌐 Phone Bridge WebSocket dinleniyor: ws://0.0.0.0:{self.port}")
+                await asyncio.Future()  # Sonsuza kadar dinle
+
         def _run():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            print(f"[PhoneBridge] 🌐 Phone Bridge WebSocket başlatıldı: ws://0.0.0.0:{self.port}")
-            server = websockets.serve(self.handler, "0.0.0.0", self.port)
-            loop.run_until_complete(server)
-            loop.run_forever()
+            try:
+                asyncio.run(_serve())
+            except Exception as e:
+                print(f"[PhoneBridge] ⚠️ Phone Bridge hatası: {e}")
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()
