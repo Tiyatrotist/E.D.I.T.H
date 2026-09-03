@@ -1,14 +1,11 @@
 """
-discord_bot/bot.py — EDITH Discord Bot Ana Servisi
+discord_bot/bot.py — EDITH Discord Bot Ana Servisi (Stark UI & Anlık Slash Senkronizasyonu)
 
 Özellikler:
-1. Gerçek Discord Slash Komutları (/join, /leave, /speak, /nizami, /status, /search, /screen)
-   ve tree.sync() ile Discord arayüzüne anında entegrasyon.
-2. Dinamik Mod Değişimi:
-   - Normal Mod (Varsayılan): Samimi, zeki, doğal insan; sürekli 'efendim' çekmez.
-   - Nizami Mod: "nizami ol" dendiğinde askeri disiplin ve taktiksel Stark protokolüne geçer.
-   - "rahatla" dendiğinde tekrar normal samimi moda döner.
-3. Hem Slash komutları hem metin komutları hem doğal dil algılama.
+1. Discord Guild Bazlı Anlık Slash Komut Senkronizasyonu (1 saniyede Discord menüsünde belirir).
+2. Fütüristik Stark Industries Embeds (Zengin arayüz kartları, ikonlar, renkler).
+3. "Bir isteğin mi var?" tarzında olgun, saygılı ve akıllı insan kişiliği.
+4. Dinamik Nizami / Normal mod geçişi.
 """
 
 from __future__ import annotations
@@ -28,6 +25,13 @@ except ImportError:
 
 from app_config import load_app_config
 from discord_bot.command_router import handle_system_command
+from discord_bot.embeds import (
+    help_embed,
+    mode_embed,
+    search_embed,
+    status_embed,
+    voice_embed,
+)
 from discord_bot.personality import calculate_typing_delay
 from discord_bot.text_engine import DiscordTextEngine
 from discord_bot.voice_engine import DiscordVoiceEngine
@@ -56,47 +60,65 @@ class EdithDiscordBot:
         """Discord yerel Slash (/) komutlarını tanımlar."""
         tree = self.bot.tree
 
-        @tree.command(name="join", description="Sesli odaya katılır")
+        @tree.command(name="yardim", description="E.D.I.T.H komut rehberi ve özellikleri")
+        async def slash_help(interaction: discord.Interaction):
+            emb = help_embed(self.bot.user)
+            await interaction.response.send_message(embed=emb)
+
+        @tree.command(name="join", description="Bulunduğunuz sesli odaya katılır")
         async def slash_join(interaction: discord.Interaction):
             if interaction.user and isinstance(interaction.user, discord.Member) and interaction.user.voice:
-                await self.voice_engine.join_channel(interaction.user.voice.channel)
-                await interaction.response.send_message("🎙️ Sesli kanala katıldım.")
+                channel = interaction.user.voice.channel
+                await self.voice_engine.join_channel(channel)
+                emb = voice_embed("join", channel.name, bot_user=self.bot.user)
+                await interaction.response.send_message(embed=emb)
             else:
-                await interaction.response.send_message("Önce bir sesli kanala girmelisin.", ephemeral=True)
+                await interaction.response.send_message("Önce bir sesli kanala geçmelisin.", ephemeral=True)
 
         @tree.command(name="leave", description="Sesli odadan ayrılır")
         async def slash_leave(interaction: discord.Interaction):
             await self.voice_engine.leave_channel()
-            await interaction.response.send_message("📴 Sesli odadan ayrıldım.")
+            emb = voice_embed("leave", bot_user=self.bot.user)
+            await interaction.response.send_message(embed=emb)
 
-        @tree.command(name="speak", description="Piper kadın sesiyle kanalda konuşur")
-        @app_commands.describe(metin="Seslendirilecek cümle")
+        @tree.command(name="speak", description="Piper kadın sesiyle sesli odada konuşur")
+        @app_commands.describe(metin="Seslendirilecek metin")
         async def slash_speak(interaction: discord.Interaction, metin: str):
             await interaction.response.defer()
             await self.voice_engine.speak_text(metin)
-            await interaction.followup.send(f"🗣️ Seslendirildi: *{metin[:100]}*")
+            emb = voice_embed("speak", text=metin, bot_user=self.bot.user)
+            await interaction.followup.send(embed=emb)
 
         @tree.command(name="nizami", description="Nizami askeri disiplin modunu açar veya kapatır")
         @app_commands.describe(mod="aç veya kapat")
         async def slash_nizami(interaction: discord.Interaction, mod: str = "aç"):
             is_on = mod.lower() in ("aç", "ac", "on", "aktif", "true")
             self.channel_modes[interaction.channel_id] = "nizami" if is_on else "natural"
-            if is_on:
-                await interaction.response.send_message("🛡️ **Nizami Protokol Devrede:** Taktiksel savunma ve askeri disiplin moduna geçildi. Emirlerinizi bekliyorum, Efendim.")
-            else:
-                await interaction.response.send_message("🌿 **Normal Mod:** Rahat moda geçtim. Normal konuşuyoruz.")
+            emb = mode_embed("nizami" if is_on else "natural", bot_user=self.bot.user)
+            await interaction.response.send_message(embed=emb)
 
-        @tree.command(name="status", description="Sunucu ve sistem durum raporu")
+        @tree.command(name="status", description="Sunucu yükü ve sistem telemetri durumu")
         async def slash_status(interaction: discord.Interaction):
-            rep, _ = handle_system_command("status")
-            await interaction.response.send_message(f"```{rep}```")
+            is_connected = (
+                self.voice_engine.voice_client is not None
+                and self.voice_engine.voice_client.is_connected()
+            )
+            mode = self.channel_modes.get(interaction.channel_id, "natural")
+            emb = status_embed(
+                bot_user=self.bot.user,
+                ping_ms=self.bot.latency * 1000,
+                voice_connected=is_connected,
+                active_mode=mode,
+            )
+            await interaction.response.send_message(embed=emb)
 
         @tree.command(name="search", description="İnternette canlı arama yapar")
         @app_commands.describe(sorgu="Aranacak konu")
         async def slash_search(interaction: discord.Interaction, sorgu: str):
             await interaction.response.defer()
             rep, _ = handle_system_command("search", sorgu)
-            await interaction.followup.send(rep[:2000])
+            emb = search_embed(sorgu, rep, bot_user=self.bot.user)
+            await interaction.followup.send(embed=emb)
 
         @tree.command(name="screen", description="Bilgisayarın anlık ekran görüntüsünü alır")
         async def slash_screen(interaction: discord.Interaction):
@@ -112,13 +134,23 @@ class EdithDiscordBot:
         @self.bot.event
         async def on_ready():
             print(f"[DiscordBot] 🤖 Bot hazır ve giriş yaptı: {self.bot.user} (ID: {self.bot.user.id})")
-            await self.bot.change_presence(activity=discord.Game(name="EDITH // Online"))
-            # Slash komutlarını Discord API ile eşitle
+            activity = discord.Activity(type=discord.ActivityType.listening, name="Komutlarınızı / 'edith'")
+            await self.bot.change_presence(activity=activity, status=discord.Status.online)
+
+            # ── TÜM SUNUCULARA ANINDA (INSTANT) SYNC ──
+            # Global sync saatler alabilir; sunucu bazlı sync anında aktiftir
+            for guild in self.bot.guilds:
+                try:
+                    self.bot.tree.copy_global_to(guild=guild)
+                    await self.bot.tree.sync(guild=guild)
+                    print(f"[DiscordBot] ⚡ Slash komutları '{guild.name}' sunucusuna anında senkronize edildi!")
+                except Exception as ex:
+                    print(f"[DiscordBot] ⚠️ Guild sync ({guild.name}): {ex}")
+
             try:
-                synced = await self.bot.tree.sync()
-                print(f"[DiscordBot] ⚡ {len(synced)} adet Slash komutu Discord ile senkronize edildi!")
-            except Exception as e:
-                print(f"[DiscordBot] ⚠️ Slash sync uyarısı: {e}")
+                await self.bot.tree.sync()
+            except Exception:
+                pass
 
         @self.bot.event
         async def on_message(message: discord.Message):
@@ -130,57 +162,80 @@ class EdithDiscordBot:
             current_mode = self.channel_modes.get(ch_id, "natural")
             lower_content = content.lower()
 
-            # ── 1. DİNAMİK KİŞİLİK GEÇİŞİ (Doğal Dil Algılama) ──
+            # ── 1. DİNAMİK KİŞİLİK GEÇİŞİ ──
             if any(p in lower_content for p in ["nizami ol", "resmi ol", "taktiksel ol", "askeri moda geç", "nizamiye geç"]):
                 self.channel_modes[ch_id] = "nizami"
-                await message.channel.send("🛡️ Anlaşıldı. Nizami ve taktiksel protokole geçildi. Emirlerinizi bekliyorum, Efendim.")
+                emb = mode_embed("nizami", bot_user=self.bot.user)
+                await message.channel.send(embed=emb)
                 return
 
             if any(p in lower_content for p in ["rahatla", "normal konuş", "serbest ol", "nizami kapat", "normal takıl"]):
                 self.channel_modes[ch_id] = "natural"
-                await message.channel.send("🌿 Tamamdır, rahat moda geçtim. Ne yapıyoruz?")
+                emb = mode_embed("natural", bot_user=self.bot.user)
+                await message.channel.send(embed=emb)
                 return
 
-            # ── 2. PREFIX KOMUTLAR (Örn: !status, !join, /join) ──
+            # ── 2. PREFIX KOMUTLAR (Örn: !yardim, !status, !join) ──
             if content.startswith(("/", "!")):
                 parts = content[1:].split(" ", 1)
                 cmd = parts[0].lower()
                 args = parts[1] if len(parts) > 1 else ""
 
+                if cmd in ("yardim", "help"):
+                    emb = help_embed(self.bot.user)
+                    await message.channel.send(embed=emb)
+                    return
+
                 if cmd == "join":
                     if message.author.voice and message.author.voice.channel:
-                        await self.voice_engine.join_channel(message.author.voice.channel)
-                        await message.channel.send("🎙️ Sesli kanala katıldım.")
+                        channel = message.author.voice.channel
+                        await self.voice_engine.join_channel(channel)
+                        emb = voice_embed("join", channel.name, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
                     else:
                         await message.channel.send("Önce bir sesli kanala geçmelisin.")
                     return
 
                 if cmd == "leave":
                     await self.voice_engine.leave_channel()
-                    await message.channel.send("📴 Sesli kanaldan ayrıldım.")
+                    emb = voice_embed("leave", bot_user=self.bot.user)
+                    await message.channel.send(embed=emb)
                     return
 
                 if cmd == "speak":
                     if args:
                         await self.voice_engine.speak_text(args)
-                        await message.channel.send("🗣️ Seslendirildi.")
+                        emb = voice_embed("speak", text=args, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
                     return
 
-                if cmd == "nizami":
-                    is_on = args.lower() in ("aç", "ac", "on", "aktif", "true") if args else True
-                    self.channel_modes[ch_id] = "nizami" if is_on else "natural"
-                    if is_on:
-                        await message.channel.send("🛡️ Nizami protokol aktif edildi.")
-                    else:
-                        await message.channel.send("🌿 Normal insan moduna dönüldü.")
+                if cmd == "status":
+                    is_connected = (
+                        self.voice_engine.voice_client is not None
+                        and self.voice_engine.voice_client.is_connected()
+                    )
+                    emb = status_embed(
+                        bot_user=self.bot.user,
+                        ping_ms=self.bot.latency * 1000,
+                        voice_connected=is_connected,
+                        active_mode=current_mode,
+                    )
+                    await message.channel.send(embed=emb)
                     return
 
-                # Sistem komutları yönlendirici
+                if cmd == "search":
+                    if args:
+                        rep, _ = handle_system_command("search", args)
+                        emb = search_embed(args, rep, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    return
+
+                # Diğer sistem komutları
                 reply_text, file_bytes = handle_system_command(cmd, args)
                 if file_bytes:
                     discord_file = discord.File(io.BytesIO(file_bytes), filename="screen.png")
                     await message.channel.send(content=reply_text, file=discord_file)
-                else:
+                elif reply_text:
                     await message.channel.send(reply_text)
                 return
 
@@ -190,7 +245,6 @@ class EdithDiscordBot:
             starts_with_name = lower_content.startswith(("edith", "edit"))
             has_name = "edith" in lower_content
 
-            # Boş içerik kontrolü (Intent kapalıyken gelen boş mesajları engelle)
             image_bytes = None
             if message.attachments:
                 for att in message.attachments:
@@ -201,17 +255,18 @@ class EdithDiscordBot:
             if not content and not image_bytes:
                 return
 
-            # Bot yalnızca kendisine seslenildiğinde (DM, Mention veya "edith") konuşsun
             should_respond = is_dm or is_mentioned or starts_with_name or has_name
             if not should_respond:
                 return
 
-            # "edith" ön ekini temizle
+            # "edith" çağrısı
             clean_content = content
             if starts_with_name:
                 clean_content = content.split(" ", 1)[1].strip() if " " in content else ""
+
+            # Sadece "edith" dendiğinde kibar ve olgun karşılama:
             if not clean_content and not image_bytes:
-                await message.channel.send("Efendim? Buradayım.")
+                await message.channel.send("Buradayım, bir isteğin mi var?")
                 return
 
             async with message.channel.typing():
