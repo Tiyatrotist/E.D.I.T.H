@@ -186,29 +186,47 @@ class EdithDiscordBot:
 
             # ── 3. DOĞAL DİL SOHBETİ ──
             is_dm = isinstance(message.channel, discord.DMChannel)
-            is_mentioned = self.bot.user in message.mentions
+            is_mentioned = (self.bot.user in message.mentions) if self.bot.user else False
+            starts_with_name = lower_content.startswith(("edith", "edit"))
+            has_name = "edith" in lower_content
 
-            if is_dm or is_mentioned or self.cfg.get("respond_to_all", True):
-                image_bytes = None
-                if message.attachments:
-                    for att in message.attachments:
-                        if any(att.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp"]):
-                            image_bytes = await att.read()
-                            break
+            # Boş içerik kontrolü (Intent kapalıyken gelen boş mesajları engelle)
+            image_bytes = None
+            if message.attachments:
+                for att in message.attachments:
+                    if any(att.filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".webp"]):
+                        image_bytes = await att.read()
+                        break
 
-                async with message.channel.typing():
-                    chunks = await self.text_engine.generate_response(
-                        channel_id=ch_id,
-                        user_message=content,
-                        author_name=message.author.display_name,
-                        image_bytes=image_bytes,
-                        personality=current_mode,
-                    )
+            if not content and not image_bytes:
+                return
 
-                    for chunk in chunks:
-                        delay = calculate_typing_delay(chunk)
-                        await asyncio.sleep(delay)
-                        await message.channel.send(chunk)
+            # Bot yalnızca kendisine seslenildiğinde (DM, Mention veya "edith") konuşsun
+            should_respond = is_dm or is_mentioned or starts_with_name or has_name
+            if not should_respond:
+                return
+
+            # "edith" ön ekini temizle
+            clean_content = content
+            if starts_with_name:
+                clean_content = content.split(" ", 1)[1].strip() if " " in content else ""
+            if not clean_content and not image_bytes:
+                await message.channel.send("Efendim? Buradayım.")
+                return
+
+            async with message.channel.typing():
+                chunks = await self.text_engine.generate_response(
+                    channel_id=ch_id,
+                    user_message=clean_content,
+                    author_name=message.author.display_name,
+                    image_bytes=image_bytes,
+                    personality=current_mode,
+                )
+
+                for chunk in chunks:
+                    delay = calculate_typing_delay(chunk)
+                    await asyncio.sleep(delay)
+                    await message.channel.send(chunk)
 
     def run(self):
         if not self.token:

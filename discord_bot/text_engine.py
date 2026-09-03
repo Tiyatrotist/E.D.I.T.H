@@ -69,9 +69,8 @@ class DiscordTextEngine:
             # 2. METİN SOHBETİ
             context_lines = []
             for m in hist:
-                name_prefix = f"[{m['author']}]: " if m.get("author") else ""
                 role_prefix = "Kullanıcı" if m["role"] == "user" else "EDITH"
-                context_lines.append(f"{role_prefix} {name_prefix}{m['content']}")
+                context_lines.append(f"{role_prefix}: {m['content']}")
 
             prompt = "\n".join(context_lines) + "\nEDITH:"
             raw_reply = await self.llm.generate_response(
@@ -80,7 +79,7 @@ class DiscordTextEngine:
                 max_tokens=512,
             )
 
-        reply_text = raw_reply.strip() or "haha aynen öyle"
+        reply_text = raw_reply.strip() or "Buradayım, seni dinliyorum."
         self.add_message(channel_id, "assistant", reply_text, "EDITH")
 
         # İnsansı parçalama
