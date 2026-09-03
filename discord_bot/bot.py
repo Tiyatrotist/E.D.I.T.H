@@ -53,6 +53,7 @@ class EdithDiscordBot:
 
         self.bot = commands.Bot(command_prefix=["/", "!"], intents=intents)
         self.voice_engine = DiscordVoiceEngine(self.bot)
+        self.text_engine.set_bot_instance(self)
         self._setup_slash_commands()
         self._setup_events()
 
@@ -137,20 +138,20 @@ class EdithDiscordBot:
             activity = discord.Activity(type=discord.ActivityType.listening, name="Komutlarınızı / 'edith'")
             await self.bot.change_presence(activity=activity, status=discord.Status.online)
 
-            # ── TÜM SUNUCULARA ANINDA (INSTANT) SYNC ──
-            # Global sync saatler alabilir; sunucu bazlı sync anında aktiftir
+            # ── ÇİFT KOMUTU ENGELLE: Guild kopyalarını temizle, tekil global sync yap ──
             for guild in self.bot.guilds:
                 try:
-                    self.bot.tree.copy_global_to(guild=guild)
+                    self.bot.tree.clear_commands(guild=guild)
                     await self.bot.tree.sync(guild=guild)
-                    print(f"[DiscordBot] ⚡ Slash komutları '{guild.name}' sunucusuna anında senkronize edildi!")
+                    print(f"[DiscordBot] 🧹 '{guild.name}' sunucusundaki çift komutlar temizlendi.")
                 except Exception as ex:
-                    print(f"[DiscordBot] ⚠️ Guild sync ({guild.name}): {ex}")
+                    print(f"[DiscordBot] ⚠️ Guild clean ({guild.name}): {ex}")
 
             try:
-                await self.bot.tree.sync()
-            except Exception:
-                pass
+                synced = await self.bot.tree.sync()
+                print(f"[DiscordBot] ⚡ {len(synced)} adet tekil Slash komutu Discord ile senkronize edildi!")
+            except Exception as e:
+                print(f"[DiscordBot] ⚠️ Global sync uyarısı: {e}")
 
         @self.bot.event
         async def on_message(message: discord.Message):
@@ -276,6 +277,7 @@ class EdithDiscordBot:
                     author_name=message.author.display_name,
                     image_bytes=image_bytes,
                     personality=current_mode,
+                    message_context=message,
                 )
 
                 for chunk in chunks:

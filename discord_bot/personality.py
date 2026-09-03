@@ -46,11 +46,28 @@ Sen E.D.I.T.H. (Even Dead, I'm The Hero) taktiksel savunma ve sistem yönetim pr
 """
 
 
+DISCORD_AGENT_TOOLS = """
+🛠️ KULLANABİLECEĞİN AJAN ARAÇLARI (AGENT TOOLS):
+Kullanıcının doğrudan bir eylem veya güncel veri istediği durumlarda şu araçları çağırabilirsin:
+- web_search(query): İnternette canlı arama yapar (hava durumu, haberler, maç sonuçları, güncel bilgi).
+- get_system_status(): Sunucu telemetrisini ve donanım durumunu (CPU, RAM, Disk) kontrol eder.
+- join_voice(): Kullanıcının sesli odasına katılır.
+- leave_voice(): Sesli odadan ayrılır.
+- speak_voice(text): Sesli odada Piper kadın sesiyle konuşur.
+- set_mode(mode): Modu 'nizami' veya 'natural' yapar.
+
+Format:
+Araç kullanman gerekiyorsa cevabında şunu üret:
+TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
+
+Eğer araç gerekmiyorsa hiçbir TOOL_CALL yazma, sadece doğrudan samimi veya nizami cevabını ver.
+"""
+
+
 def get_system_prompt(personality: str = "natural") -> str:
-    """Seçili kişilik için system prompt döndürür."""
-    if personality in ("nizami", "tactical", "military", "formal"):
-        return NIZAMI_TACTICAL_PROMPT
-    return NATURAL_HUMAN_PROMPT
+    """Seçili kişilik ve ajan araçları için system prompt döndürür."""
+    base = NIZAMI_TACTICAL_PROMPT if personality in ("nizami", "tactical", "military", "formal") else NATURAL_HUMAN_PROMPT
+    return base + "\n\n" + DISCORD_AGENT_TOOLS
 
 
 def calculate_typing_delay(text: str) -> float:
