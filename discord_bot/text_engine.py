@@ -165,7 +165,7 @@ class DiscordTextEngine:
             raw_reply = await self.llm.generate_response(
                 prompt=prompt,
                 system_instruction=get_system_prompt(personality),
-                max_tokens=512,
+                max_tokens=1024,
             )
 
             # 3. ARAÇ ÇAĞRISI (TOOL_CALL) KONTROLÜ
@@ -184,16 +184,20 @@ class DiscordTextEngine:
                 final_reply = await self.llm.generate_response(
                     prompt=agent_followup_prompt,
                     system_instruction=get_system_prompt(personality),
-                    max_tokens=512,
+                    max_tokens=1024,
                 )
                 raw_reply = final_reply or tool_result
 
         # Düşünce etiketlerini temizle (<think>...</think>)
-        cleaned_reply = re.sub(r"<think>.*?</think>", "", raw_reply, flags=re.DOTALL)
+        cleaned_reply = re.sub(r"<think>.*?</think>", "", raw_reply, flags=re.DOTALL).strip()
         if "<think>" in cleaned_reply:
-            cleaned_reply = cleaned_reply.split("<think>")[0]
+            cleaned_reply = cleaned_reply.split("<think>")[0].strip()
 
-        reply_text = cleaned_reply.strip() or "Buradayım, bir isteğin mi var?"
+        if not cleaned_reply and raw_reply:
+            # Eğer tüm metin düşünce içindeyse ve dışarısı boşsa, içini kurtar
+            cleaned_reply = re.sub(r"</?think>", "", raw_reply).strip()
+
+        reply_text = cleaned_reply or "İsteğini işlerken küçük bir aksaklık oldu, tekrar iletir misin?"
         self.add_message(channel_id, "assistant", reply_text, "EDITH")
 
         # İnsansı parçalama

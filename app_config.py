@@ -87,16 +87,24 @@ DEFAULT_PROVIDERS = {
         "enabled": False,
         "api_key": "",
         "api_url": "https://integrate.api.nvidia.com/v1",
-        "model": "meta/llama-3.3-70b-instruct",
+        "model": "meta/llama-3.2-11b-vision-instruct",
         "vision_model": "meta/llama-3.2-11b-vision-instruct",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+    },
+    "mistral": {
+        "enabled": False,
+        "api_key": "",
+        "api_url": "https://api.mistral.ai/v1",
+        "model": "mistral-small-latest",
         "temperature": 0.7,
         "max_tokens": 2048,
     },
     "cohere": {
         "enabled": False,
         "api_key": "",
-        "api_url": "https://api.cohere.com/v2",
-        "model": "command-r-plus-08-2024",
+        "api_url": "https://api.cohere.ai/compatibility/v1",
+        "model": "command-r-08-2024",
         "temperature": 0.7,
         "max_tokens": 2048,
     },
@@ -143,8 +151,8 @@ DEFAULT_DISCORD = {
 }
 
 DEFAULT_CONFIG = {
-    "active_provider": "ollama",
-    "fallback_chain": ["ollama"],
+    "active_provider": "nim",
+    "fallback_chain": ["nim", "mistral", "cohere", "gemini", "groq", "openrouter", "ollama"],
     "providers": DEFAULT_PROVIDERS,
     "phone_companion": DEFAULT_PHONE_COMPANION,
     "discord": DEFAULT_DISCORD,

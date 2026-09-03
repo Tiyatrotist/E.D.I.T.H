@@ -738,8 +738,8 @@ class LLMPool:
 
     def __init__(self):
         self._providers: dict[str, BaseLLMProvider] = {}
-        self._active_provider: str = "ollama"
-        self._fallback_chain: list[str] = ["ollama"]
+        self._active_provider: str = "nim"
+        self._fallback_chain: list[str] = ["nim", "mistral", "cohere", "gemini", "groq", "openrouter", "ollama"]
         self._initialized = False
         print("[LLMPool] 🏗️ Pool oluşturuldu")
 

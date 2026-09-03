@@ -260,12 +260,13 @@ class EdithDiscordBot:
             if not should_respond:
                 return
 
-            # "edith" çağrısı
-            clean_content = content
-            if starts_with_name:
-                clean_content = content.split(" ", 1)[1].strip() if " " in content else ""
+            # Mentions ve isim çağrılarını temizle
+            clean_content = re.sub(r"<@!?\d+>", "", content).strip()
+            lower_clean = clean_content.lower()
+            if lower_clean.startswith(("edith", "edit")):
+                clean_content = clean_content.split(" ", 1)[1].strip() if " " in clean_content else ""
 
-            # Sadece "edith" dendiğinde kibar ve olgun karşılama:
+            # Kullanıcı yalnızca bota seslendiyse (Örn: sadece "@E.D.I.T.H" veya sadece "edith"):
             if not clean_content and not image_bytes:
                 await message.channel.send("Buradayım, bir isteğin mi var?")
                 return

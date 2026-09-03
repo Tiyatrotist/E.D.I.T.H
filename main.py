@@ -656,14 +656,22 @@ class EdithLive:
                 speak_text_content = clean_response
 
             if speak_text_content:
-                print(f"[EDITH] 🗣️ AI: {speak_text_content[:100]}...")
-                self.ui.write_log(f"EDITH: {speak_text_content}")
+                # TOOL_CALL ve <think> bloklarını sesten temizle
+                speak_clean = re.sub(r"TOOL_CALL:.*", "", speak_text_content, flags=re.DOTALL).strip()
+                speak_clean = re.sub(r"<think>.*?</think>", "", speak_clean, flags=re.DOTALL).strip()
+                if "<think>" in speak_clean:
+                    speak_clean = speak_clean.split("<think>")[0].strip()
+                if not speak_clean:
+                    speak_clean = "İşlemi tamamladım."
+
+                print(f"[EDITH] 🗣️ AI: {speak_clean[:100]}...")
+                self.ui.write_log(f"EDITH: {speak_clean}")
                 self._chat_history.append(("user", text))
-                self._chat_history.append(("assistant", speak_text_content[:800]))
+                self._chat_history.append(("assistant", speak_clean[:800]))
                 self.set_speaking(True)
                 await asyncio.to_thread(
                     speak_text,
-                    speak_text_content[:1000],
+                    speak_clean[:1000],
                     blocking=True,
                     rate=int(get_app_config_value("tts_rate", 150)),
                     volume=float(get_app_config_value("tts_volume", 1.0)),
