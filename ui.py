@@ -622,6 +622,7 @@ class EdithUI:
         self._build_pause_button()
         self._build_shutdown_button()
         self._build_settings_panel()
+        self._build_header_settings_btn()
         self._build_voice_selector(self._settings_body)
         self._build_sfx_button(self._settings_body)
         self._build_api_button(self._settings_body)
@@ -640,6 +641,8 @@ class EdithUI:
         self.root.bind("<F11>",       lambda e: self._toggle_fullscreen())
         self.root.bind("<Control-f>", lambda e: self._toggle_fullscreen())
         self.root.bind("<F12>",       lambda e: self._toggle_compact_mode())
+        self.root.bind("<Control-comma>", lambda e: self.open_settings_dialog())
+        self.root.bind("<F2>",            lambda e: self.open_settings_dialog())
 
         self._api_key_ready = True
 
@@ -967,6 +970,51 @@ class EdithUI:
         self._render_debug_logs()
         self._refresh_settings_status()
 
+    def _build_header_settings_btn(self):
+        """Üst barda (Header) fütüristik Stark Industries Ayarlar butonu oluşturur."""
+        BW, BH = 120, 36
+        self._header_settings_canvas = tk.Canvas(
+            self.root,
+            width=BW,
+            height=BH,
+            bg="#02080a",
+            highlightthickness=0,
+            cursor="hand2",
+        )
+
+        def _draw_btn(hover=False):
+            c = self._header_settings_canvas
+            c.delete("all")
+            fill = "#082626" if hover else "#031414"
+            outline = C_PRI if hover else C_MID
+            c.create_rectangle(0, 0, BW, BH, fill=fill, outline=outline, width=1)
+            bl = 7
+            for bx, by, sx, sy in [(0, 0, 1, 1), (BW, 0, -1, 1), (0, BH, 1, -1), (BW, BH, -1, -1)]:
+                c.create_line(bx, by, bx + sx * bl, by, fill=C_PRI if hover else C_MID, width=2)
+                c.create_line(bx, by, bx, by + sy * bl, fill=C_PRI if hover else C_MID, width=2)
+            c.create_text(BW // 2, BH // 2, text="⚙ AYARLAR", fill=C_PRI if hover else C_TEXT, font=font_body_bold(10))
+
+        self._header_settings_canvas.bind("<Enter>", lambda e: _draw_btn(True))
+        self._header_settings_canvas.bind("<Leave>", lambda e: _draw_btn(False))
+        self._header_settings_canvas.bind("<Button-1>", lambda e: self.open_settings_dialog())
+        _draw_btn(False)
+
+    def open_settings_dialog(self):
+        """Gelişmiş Ayarlar Penceresini (SettingsDialog) açar."""
+        try:
+            from settings_dialog import SettingsDialog
+            dlg = SettingsDialog(self.root, on_change_callback=self._on_settings_saved)
+            dlg.open()
+        except Exception as e:
+            print(f"[UI] Ayarlar penceresi açma hatası: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _on_settings_saved(self, updated_cfg):
+        global MODEL_BADGE
+        MODEL_BADGE = _get_model_badge()
+        self.write_log("SYS: Ayarlar güncellendi ve uygulandı.")
+
     def _draw_settings_button(self):
         c = self._settings_btn_canvas
         bw = int(c["width"])
@@ -979,15 +1027,13 @@ class EdithUI:
         for bx, by, sx, sy in [(0, 0, 1, 1), (bw, 0, -1, 1), (0, bh, 1, -1), (bw, bh, -1, -1)]:
             c.create_line(bx, by, bx + sx * bl, by, fill=accent, width=2)
             c.create_line(bx, by, bx, by + sy * bl, fill=accent, width=2)
-        c.create_text(14, 15, text="AYARLA", fill=C_PRI, font=font_display(10), anchor="w")
+        c.create_text(14, 15, text="AYARLAR", fill=C_PRI, font=font_display(10), anchor="w")
         c.create_text(14, 33, text=MODEL_BADGE, fill="#4f7b78", font=font_body(9), anchor="w")
-        c.create_text(bw - 14, bh // 2, text="▾" if self._settings_open else "▸",
+        c.create_text(bw - 14, bh // 2, text="⚙",
                       fill=accent, font=font_display(14), anchor="e")
 
     def _toggle_settings_panel(self):
-        self._settings_open = not self._settings_open
-        self._draw_settings_button()
-        self._place_layout_widgets()
+        self.open_settings_dialog()
 
     def _draw_settings_tabs(self):
         for key, canvas, label in (
@@ -1592,10 +1638,21 @@ class EdithUI:
             except Exception:
                 pass
 
+            if hasattr(self, "_header_settings_canvas"):
+                hdr_btn_x = max(10, self.W - 130)
+                self._header_settings_canvas.place(x=hdr_btn_x, y=8, width=110, height=30)
+                tk.Misc.lift(self._header_settings_canvas)
+
             inp_w = self.W - pad * 2 - 76 - 8
             self._input_entry.place(x=pad, y=self.H - pad - INPUT_H, width=max(140, inp_w), height=INPUT_H)
             self._send_btn.place(x=pad + max(140, inp_w) + 8, y=self.H - pad - INPUT_H, width=76, height=INPUT_H)
             return
+
+        # Üst barda (Header) sağ tarafa Ayarlar Butonunu yerleştir
+        if hasattr(self, "_header_settings_canvas"):
+            hdr_btn_x = max(240, self.W - 280)
+            self._header_settings_canvas.place(x=hdr_btn_x, y=18, width=120, height=36)
+            tk.Misc.lift(self._header_settings_canvas)
 
         self.log_frame.place(x=self.CHAT_X, y=self.CHAT_Y, width=self.CHAT_W, height=self.CHAT_H)
         gap = 12

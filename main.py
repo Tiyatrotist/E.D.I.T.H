@@ -100,7 +100,7 @@ Kullanabileceğin araçlar:
 - get_reminders(query, limit): Hatırlatıcılar
 - add_reminder(title, due_time_str, notes): Hatırlatıcı ekle
 - web_search(query, mode, max_results): Web ve güncel haber araması (search, news, price, compare)
-- browser_control(action, url, query): Tarayıcı kontrolü (open_url, search, play_youtube, close_tab)
+- browser_control(action, url, query): Tarayıcı kontrolü (open_url, search, play_youtube, close_tab). ASLA 'yourusername' gibi sahte linkler uydurma. Özel hesaplar için ana sayfayı aç veya eksik bilgiyi sor.
 - code_helper(intent, description, file_path, code, language, output_path): Kod yaz, düzenle, açıkla, çalıştır, build yap
 - process_file(file_path, action, instruction, params): Dosya analizi (ocr, describe, resize, convert, summarize, info)
 - search_flights(origin, destination, date, return_date, passengers, cabin): Google Flights ile uçuş ara
@@ -117,7 +117,7 @@ Kullanabileceğin araçlar:
 - send_message(recipient, message, platform): WhatsApp veya Telegram mesajı gönder
 - shell_run(command): Windows komut çalıştır
 - play_media(query, provider, autoplay): Müzik/video oynat
-- analyze_screen(query): Ekran görüntüsü analiz et
+- analyze_screen(query): Ekranı görür ve Gemini vision ile analiz eder. Kullanıcı "ekranımı görebiliyor musun?", "ekranda ne var?", "buna bak" dediğinde MUTLAKA bu aracı çağır!
 - mouse_control(action, x, y, button, clicks, start_x, start_y, end_x, end_y, delta, text): Fare ve klavye kontrolü
 - save_memory(category, key, value): Hafızaya kaydet
 - delete_memory(category, key, match_text): Hafızadan sil
@@ -125,7 +125,8 @@ Kullanabileceğin araçlar:
 Araç çağırmak için şu formatı kullan:
 TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
 
-Eğer araç gerekmiyorsa sadece doğrudan Türkçe cevap ver.
+Eğer araç gerekmiyorsa sadece doğrudan Türkçe cevap ver. Sahip olmadığın veya yapmadığın eylemleri yapmış gibi asla söyleme.
+
 """
 
 TOOLS_DESCRIPTION_EN = """

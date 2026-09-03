@@ -430,3 +430,16 @@ def record_vad(
 
     text = recognizer.transcribe_array(audio_float32, language=language)
     return text
+
+
+def listen_for_speech(language: str = "tr", silence_timeout: float = 1.2, max_duration: float = 15.0) -> str:
+    """
+    Mikrofondan konuşmayı dinler ve metin döndürür (main.py için ana dinleme fonksiyonu).
+    VAD ile ses başladığında kaydeder, sustuğunda Whisper ile transkripsiyon yapar.
+    """
+    try:
+        text = record_vad(language=language, silence_timeout=silence_timeout, max_duration=max_duration)
+        return (text or "").strip()
+    except Exception as e:
+        print(f"[STT] Dinleme hatası: {e}", file=sys.stderr)
+        return ""

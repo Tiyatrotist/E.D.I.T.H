@@ -52,7 +52,7 @@ class SettingsDialog:
         # Provider specific variables stored in dict
         self.provider_vars = {}
         providers = self.cfg.get("providers", {})
-        for pname in ["ollama", "gemini", "openai", "anthropic", "groq", "openrouter", "deepseek", "nim", "local_openai"]:
+        for pname in ["nim", "gemini", "groq", "mistral", "cohere", "openrouter", "deepseek", "openai", "anthropic", "ollama", "local_openai"]:
             pdata = providers.get(pname, {})
             self.provider_vars[pname] = {
                 "enabled": tk.BooleanVar(value=bool(pdata.get("enabled", False))),
@@ -134,7 +134,7 @@ class SettingsDialog:
 
         tk.Label(top_bar, text="Aktif Sağlayıcı:", fg=C_GOLD, bg=C_PANEL, font=font_body_bold(10)).pack(side="left", padx=(0, 8))
 
-        all_providers = ["ollama", "gemini", "openai", "anthropic", "groq", "openrouter", "deepseek", "nim", "local_openai"]
+        all_providers = ["nim", "gemini", "groq", "mistral", "cohere", "openrouter", "deepseek", "openai", "anthropic", "ollama", "local_openai"]
         active_combo = ttk.Combobox(
             top_bar, textvariable=self.active_provider_var, values=all_providers,
             state="readonly", font=font_body(10), width=14
