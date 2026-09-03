@@ -329,6 +329,22 @@ class SettingsDialog:
             fg=C_TEXT, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_PRI, activebackground=C_PANEL, font=font_body(9)
         ).pack(anchor="w", padx=10, pady=4)
 
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            local_ip = "127.0.0.1"
+
+        info_box = tk.Label(
+            p_frame,
+            text=f"📱 Telefon Tarayıcısından Girilecek Adres:\nhttp://{local_ip}:8080\n(Android / iOS Uyumlu Mobil Asistan)",
+            fg=C_GOLD, bg="#021212", font=font_body_bold(9), justify="left", padx=8, pady=6, relief="groove"
+        )
+        info_box.pack(fill="x", padx=10, pady=(6, 8))
+
         # Discord Bot
         d_frame = tk.LabelFrame(frame, text=" 🤖 Discord Bot Entegrasyonu ", bg=C_PANEL, fg=C_BLUE, font=font_body_bold(9))
         d_frame.pack(fill="x", padx=14, pady=10)

@@ -233,10 +233,13 @@ class EdithLive:
         if self._loop and not self._loop.is_closed():
             asyncio.run_coroutine_threadsafe(self._handle_command(text), self._loop)
 
-    def _on_pause_toggle(self):
-        self._paused = not self._paused
+    def _on_pause_toggle(self, is_paused=None):
+        if is_paused is not None:
+            self._paused = bool(is_paused)
+        else:
+            self._paused = not self._paused
         state = "DURAKLATILDI" if self._paused else "DİNLİYOR"
-        self.ui.write_log(f"SYS: Asistan {state}")
+        self.ui.write_log(f"SYS: {state}")
         self.ui.set_state("IDLE" if self._paused else "LISTENING")
 
     def _on_stop_command(self):
