@@ -58,30 +58,30 @@ def web_search(query: str, mode: str = "search", max_results: int = 5) -> str:
         ddgs = DDGSClass()
 
         if mode == "news":
-            results = list(ddgs.news(keywords=query, max_results=max_results))
+            results = list(ddgs.news(query, max_results=max_results))
             if not results:
                 return f"'{query}' ile ilgili güncel haber bulunamadı."
 
             lines = [f"📰 '{query}' ile İlgili Haberler:"]
             for i, r in enumerate(results, 1):
                 title = r.get("title", "")
-                snippet = r.get("body", "")
+                snippet = r.get("body") or r.get("snippet", "")
                 date = r.get("date", "")
-                url = r.get("url", "")
+                url = r.get("url") or r.get("href", "")
                 lines.append(f"\n{i}. **{title}** ({date})\n   {snippet}\n   Kaynak: {url}")
             return "\n".join(lines)
 
         else:
             # Genel metin araması (search, research, price, compare)
-            results = list(ddgs.text(keywords=query, max_results=max_results))
+            results = list(ddgs.text(query, max_results=max_results))
             if not results:
                 return f"'{query}' araması için sonuç bulunamadı."
 
             lines = [f"🌐 '{query}' Arama Sonuçları:"]
             for i, r in enumerate(results, 1):
                 title = r.get("title", "")
-                snippet = r.get("body", "")
-                href = r.get("href", "")
+                snippet = r.get("body") or r.get("snippet", "")
+                href = r.get("href") or r.get("url", "")
                 lines.append(f"\n{i}. **{title}**\n   {snippet}\n   Bağlantı: {href}")
 
             if mode in ("price", "compare"):

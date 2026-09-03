@@ -188,7 +188,12 @@ class DiscordTextEngine:
                 )
                 raw_reply = final_reply or tool_result
 
-        reply_text = raw_reply.strip() or "Buradayım, bir isteğin mi var?"
+        # Düşünce etiketlerini temizle (<think>...</think>)
+        cleaned_reply = re.sub(r"<think>.*?</think>", "", raw_reply, flags=re.DOTALL)
+        if "<think>" in cleaned_reply:
+            cleaned_reply = cleaned_reply.split("<think>")[0]
+
+        reply_text = cleaned_reply.strip() or "Buradayım, bir isteğin mi var?"
         self.add_message(channel_id, "assistant", reply_text, "EDITH")
 
         # İnsansı parçalama
