@@ -730,7 +730,15 @@ class EdithLive:
             self.ui.set_state("LISTENING")
 
             # ── Arka Plan Servislerini Başlat ─────────────────────────────────
-            # 1. Web Kontrol Paneli (Dashboard)
+            # 1. Web Kontrol Paneli (Dashboard) & Mobil Bildirim Köprüsü
+            from dashboard.server import set_call_notify_callback
+            def _on_call_finished(caller_name, summary):
+                msg = f"Buğra, az önce {caller_name} aradı. Bıraktığı not: {summary}"
+                self.ui.write_log(f"📞 [TELEFON ÇAĞRISI]: {caller_name} - {summary}")
+                from actions.tts import speak_text
+                speak_text(msg, language="tr")
+
+            set_call_notify_callback(_on_call_finished)
             start_dashboard(port=8080)
 
             # 2. Telefon Köprüsü (Phone Bridge)

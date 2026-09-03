@@ -664,20 +664,50 @@ async def phone_caller_speech(payload: dict):
     return {"reply": reply}
 
 
+_CALL_NOTIFY_CALLBACK = None
+
+def set_call_notify_callback(cb):
+    """Masaüstü bildirimleri için callback kaydeder."""
+    global _CALL_NOTIFY_CALLBACK
+    _CALL_NOTIFY_CALLBACK = cb
+
+
 @app.post("/api/phone/call_ended")
 async def phone_call_ended(payload: dict):
-    """Arama sonlandığında görüşme kaydını hafızaya yazar."""
+    """Arama sonlandığında görüşme kaydını hafızaya yazar ve bilgisayara sesli bildirir."""
     call_id = payload.get("call_id", "")
     session = _ACTIVE_CALLS.pop(call_id, None)
 
     if session:
         handler = session["handler"]
+        summary = ""
+        if len(handler.history) > 1:
+            try:
+                transcript_text = "\n".join([f"{m['role']}: {m['content']}" for m in handler.history])
+                client = LocalLLMClient()
+                summary = await client.generate_response(
+                    prompt=f"Aşağıdaki telefon konuşmasını 1 cümlede özetle ve arayanın bıraktığı notu yaz:\n{transcript_text}",
+                    system_instruction="Sen bir sekretersin. Sadece arayanın bıraktığı mesajı veya notu 1 kısa Türkçe cümleyle yaz.",
+                    max_tokens=80
+                )
+            except Exception:
+                summary = f"{len(handler.history)} mesajlık görüşme yapıldı."
+        else:
+            summary = "Görüşme tamamlandı."
+
         save_call_log(
             session["caller_name"],
             session["caller_number"],
             handler.history,
-            summary=f"{len(handler.history)} mesajlık görüşme tamamlandı.",
+            summary=summary.strip(),
         )
+
+        if _CALL_NOTIFY_CALLBACK:
+            try:
+                _CALL_NOTIFY_CALLBACK(session["caller_name"], summary.strip())
+            except Exception as e:
+                print(f"[PhoneBridge] ⚠️ Bildirim hatası: {e}")
+
     return {"status": "recorded"}
 
 
