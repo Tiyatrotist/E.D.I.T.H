@@ -68,7 +68,7 @@ def handle_system_command(command: str, args: str = "") -> tuple[str, Optional[b
         if not args:
             return "Açılacak uygulamayı belirt: `/app <uygulama_adi>`", None
         try:
-            from actions.apps import open_app
+            from actions.open_app import open_app
             res = open_app(args)
             return res, None
         except Exception as e:

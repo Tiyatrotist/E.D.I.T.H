@@ -36,7 +36,7 @@ from memory.memory_manager import (
 from ui import EdithUI
 
 # ── Actions ──────────────────────────────────────────────────────────────────
-from actions.apps import open_app
+from actions.open_app import open_app
 from actions.background_monitor import check_monitors_for_updates
 from actions.browser import browser_control
 from actions.calendar import add_calendar_event, delete_calendar_event, get_calendar_events
@@ -51,7 +51,6 @@ from actions.flight_finder import search_flights
 from actions.game_updater import list_games, update_game
 from actions.media import play_media
 from actions.mouse import mouse_control
-from actions.open_app import open_app as legacy_open_app
 from actions.proactive import ProactiveEngine
 from actions.pushup_counter import start_pushup_counter, stop_pushup_counter
 from actions.reminders import add_reminder, get_reminders
