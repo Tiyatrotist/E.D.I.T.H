@@ -250,7 +250,10 @@ def load_app_config() -> dict:
 
     if os.environ.get("DISCORD_BOT_TOKEN"):
         config.setdefault("discord", {})["bot_token"] = os.environ.get("DISCORD_BOT_TOKEN")
-        config["discord"]["enabled"] = True
+        # Eğer config dosyasında 'enabled' açıkça true yapılmadıysa yerelde kapalı tut
+        # (Böylece buluttaki 7/24 sunucu ile token çakışması yaşanmaz)
+        if "enabled" not in config.get("discord", {}):
+            config["discord"]["enabled"] = False
 
     if os.environ.get("HUGGINGFACE_API_KEY"):
         config["huggingface_api_key"] = os.environ.get("HUGGINGFACE_API_KEY")
