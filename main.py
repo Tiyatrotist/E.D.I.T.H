@@ -148,6 +148,7 @@ Kullanabileceğin araçlar:
 - save_memory(category, key, value): Kalıcı hafızaya yeni bir bilgi, tercih veya not kaydet (remember_fact)
 - recall_memory(query): Hafızadaki bilgileri semantik olarak ara ve hatırla
 - delete_memory(category, key): Hafızadan belirtilen bilgiyi veya tercihi sil (forget_memory)
+- manage_devices(action, message): Yerel ağdaki bağlı EDITH cihazlarını listele (list), anons yayınla (broadcast) veya çevrimdışı kuyruğu senkronize et (sync)
 
 Araç çağırmak için şu formatı kullan:
 TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
@@ -179,6 +180,7 @@ Available tools:
 - save_memory(category, key, value): Save fact, preference, or note into long-term memory
 - recall_memory(query): Search and recall facts from semantic memory
 - delete_memory(category, key): Delete fact from memory
+- manage_devices(action, message): Manage local network devices (list, broadcast, sync)
 
 To call a tool, use:
 TOOL_CALL: {"tool": "tool_name", "args": {"parameter": "value"}}
@@ -700,6 +702,37 @@ class EdithLive:
                 )
                 result = msg
 
+            # ── ÇEVRİMDIŞI VE YEREL AĞ ORKESTRASYONU (ITEM 10) ──────────────
+            elif name in ("manage_devices", "network_devices"):
+                act = str(args.get("action") or "list").strip().lower()
+                from core.device_orchestrator import get_device_orchestrator
+                from core.offline_queue import get_offline_queue
+                orch = get_device_orchestrator()
+                q = get_offline_queue()
+
+                if act in ("list", "show", "devices"):
+                    nodes = orch.get_nodes(include_offline=False)
+                    lines = [f"Yerel ağda {len(nodes)} aktif EDITH cihazı bağlı:"]
+                    for n in nodes:
+                        bat = f" (Pil: %{n['battery_level']})" if n.get("battery_level") is not None else ""
+                        lines.append(f"- {n['name']} [{n['device_type']}] - IP: {n['ip']}{bat}")
+                    q_cnt = q.count()
+                    if q_cnt > 0:
+                        lines.append(f"ℹ️ Çevrimdışı kuyrukta {q_cnt} bekleyen işlem bulunuyor.")
+                    result = "\n".join(lines)
+
+                elif act in ("broadcast", "announce"):
+                    msg = str(args.get("message") or args.get("command") or "Selam").strip()
+                    ok, res = orch.broadcast_announcement(msg)
+                    result = res
+
+                elif act in ("sync", "sync_now"):
+                    reconcile_res = q.reconcile_with_network()
+                    result = f"Çevrimdışı kuyruk senkronize edildi: {reconcile_res['processed']}/{reconcile_res['total']} işlem tamamlandı."
+
+                else:
+                    result = f"Geçersiz cihaz yönetim eylemi: {act}"
+
             # ── DİĞER KOMUTLAR ───────────────────────────────────────────────
             elif name == "shell_run":
                 r = await loop.run_in_executor(None, lambda: shell_run(args.get("command", "")))
@@ -1095,6 +1128,13 @@ class EdithLive:
                         print(f"[Main] ⚠️ Sabah brifingi açılış hatası: {e}")
 
             asyncio.create_task(_startup_briefing_worker())
+
+            # 8. Yerel Ağ Cihaz Orkestrasyonu ve Keşfi (Item 10)
+            try:
+                from core.device_orchestrator import get_device_orchestrator
+                get_device_orchestrator().start()
+            except Exception as e:
+                print(f"[Main] ⚠️ Cihaz orkestratörü başlatılamadı: {e}")
 
             # Ana döngü — sürekli STT dinleme
             stt_enabled = bool(get_app_config_value("stt_enabled", True))

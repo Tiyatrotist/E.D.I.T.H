@@ -538,6 +538,31 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 <div style="color:var(--text-dim); text-align:center; padding:8px;">Yükleniyor...</div>
             </div>
         </div>
+
+        <!-- Yerel Ağ ve Çoklu Cihaz Orkestrasyonu Kartı (Rule 8 - Item 10) -->
+        <div class="card" style="border: 1px solid rgba(59, 130, 246, 0.4); background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>🌐 Yerel Ağ & Cihaz Orkestrasyonu</span>
+                <span id="network-mesh-badge" style="font-size:10px; color:#60a5fa; cursor:pointer;" onclick="loadNetworkDevices()">Taramayı Yenile ↻</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Yerel Wi-Fi/LAN'daki EDITH düğümleri (Masaüstü, Android Termux, Web PWA) ve çevrimdışı işlem kuyruğu.
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="network-broadcast-input" placeholder="Yerel ağ anonsu (örn: Yemek hazır!)..." style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(59,130,246,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px;">
+                <button class="ctrl-btn" style="border-color:#60a5fa; font-weight:bold; white-space:nowrap;" onclick="sendNetworkBroadcast()">📢 Yayınla</button>
+            </div>
+            <div class="ctrl-grid" style="margin-bottom:8px;">
+                <button class="ctrl-btn" onclick="loadNetworkDevices()">🔍 Cihazları Tara</button>
+                <button class="ctrl-btn" onclick="syncOfflineQueue()">⚡ Kuyruğu Senkronize Et</button>
+            </div>
+            <div id="network-devices-container" style="max-height:160px; overflow-y:auto; font-size:11px; background:rgba(0,0,0,0.5); border-radius:6px; padding:6px; margin-bottom:6px;">
+                <div style="color:var(--text-dim); text-align:center; padding:8px;">Cihazlar taranıyor...</div>
+            </div>
+            <div id="network-queue-status" style="font-size:10px; color:var(--text-dim); text-align:right;">
+                Çevrimdışı Kuyruk: Kontrol ediliyor...
+            </div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -1248,6 +1273,75 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 }
             } catch(e) {
                 alert("Silme hatası: " + e);
+            }
+        }
+
+        // ── YEREL AĞ VE ÇOKLU CİHAZ ORKESTRASYONU (ITEM 10) ─────────
+        async function loadNetworkDevices() {
+            const container = document.getElementById('network-devices-container');
+            const badge = document.getElementById('network-mesh-badge');
+            const qStatus = document.getElementById('network-queue-status');
+            try {
+                const res = await fetch('/api/network/devices');
+                const d = await res.json();
+                const devices = d.devices || [];
+                if(badge) badge.innerText = `${d.online_count || devices.length} Aktif Cihaz ↻`;
+
+                if(devices.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Ağda cihaz bulunamadı.</div>';
+                } else {
+                    let html = '';
+                    for(const dev of devices) {
+                        const isSelf = dev.node_id === 'edith_desktop' ? ' (Bu Cihaz)' : '';
+                        const bat = dev.battery_level !== null && dev.battery_level !== undefined ? ` 🔋%${dev.battery_level}` : '';
+                        const statusColor = dev.status === 'online' ? '#00ffcc' : 'var(--text-dim)';
+                        html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <div><b style="color:#60a5fa;">${dev.name}</b> <span style="color:#fff; font-size:10px;">[${dev.device_type}]</span>${isSelf}</div>
+                            <div style="font-size:10px; color:${statusColor};">${dev.ip}${bat} • ${dev.status.toUpperCase()}</div>
+                        </div>`;
+                    }
+                    container.innerHTML = html;
+                }
+
+                // Kuyruk durumunu da güncelle
+                const qRes = await fetch('/api/network/queue');
+                const qData = await qRes.json();
+                if(qStatus) {
+                    qStatus.innerText = `Çevrimdışı Kuyruk: ${qData.count || 0} bekleyen işlem`;
+                }
+            } catch(e) {
+                container.innerHTML = '<div style="color:var(--danger); text-align:center;">Ağ taranamadı: ' + e + '</div>';
+            }
+        }
+        setTimeout(loadNetworkDevices, 2500);
+
+        async function sendNetworkBroadcast() {
+            const inp = document.getElementById('network-broadcast-input');
+            const msg = inp.value.trim();
+            if(!msg) return;
+            try {
+                const res = await fetch('/api/network/broadcast', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg})
+                });
+                const d = await res.json();
+                inp.value = '';
+                appendMsg('sys', '📢 ' + (d.message || 'Anons yayınlandı.'));
+            } catch(e) {
+                alert('Yayın hatası: ' + e);
+            }
+        }
+
+        async function syncOfflineQueue() {
+            appendMsg('sys', '⚡ Çevrimdışı kuyruk uzlaştırılıyor...');
+            try {
+                const res = await fetch('/api/network/sync_now', {method: 'POST'});
+                const d = await res.json();
+                appendMsg('sys', `✅ Senkronizasyon Tamamlandı: ${d.processed}/${d.total} işlem işlendi.`);
+                loadNetworkDevices();
+            } catch(e) {
+                alert('Senkronizasyon hatası: ' + e);
             }
         }
 
@@ -2078,6 +2172,56 @@ async def delete_memory_item(payload: dict = None):
         if ok:
             return {"status": "ok", "message": msg}
         return JSONResponse(status_code=400, content={"status": "error", "message": msg})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── YEREL AĞ VE ÇOKLU CİHAZ ORKESTRASYONU (RULE 8 - ITEM 10) ─────────────────
+
+@app.get("/api/network/devices")
+async def get_network_devices():
+    """Yerel ağda keşfedilen ve bağlı olan tüm EDITH cihazlarını döndürür."""
+    try:
+        from core.device_orchestrator import get_device_orchestrator
+        orch = get_device_orchestrator()
+        summary = orch.get_mesh_summary()
+        return {"status": "ok", **summary}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/network/broadcast")
+async def post_network_broadcast(payload: dict = None):
+    """Yerel ağdaki tüm bağlı cihazlara anlık bildirim veya anons gönderir."""
+    try:
+        msg = (payload or {}).get("message", "Selam").strip()
+        from core.device_orchestrator import get_device_orchestrator
+        ok, res = get_device_orchestrator().broadcast_announcement(msg)
+        return {"status": "ok" if ok else "error", "message": res}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/network/queue")
+async def get_offline_queue_status():
+    """Çevrimdışı işlem kuyruğunda bekleyen işlemleri ve durumu döndürür."""
+    try:
+        from core.offline_queue import get_offline_queue
+        q = get_offline_queue()
+        items = q.peek(limit=25)
+        return {"status": "ok", "count": q.count(), "items": items}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/network/sync_now")
+async def post_network_sync_now():
+    """Çevrimdışı kuyruktaki tüm bekleyen işlemleri uzlaştırır ve senkronize eder."""
+    try:
+        from core.offline_queue import get_offline_queue
+        q = get_offline_queue()
+        res = q.reconcile_with_network()
+        return {"status": "ok", **res}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

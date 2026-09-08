@@ -773,11 +773,17 @@ class LLMPool:
             }
             self._active_provider = "ollama"
             self._fallback_chain = ["ollama"]
-            print("[LLMPool] ℹ️ Eski config formatı algılandı, Ollama olarak yüklendi")
+            try:
+                print("[LLMPool] ℹ️ Eski config formatı algılandı, Ollama olarak yüklendi")
+            except Exception:
+                print("[LLMPool] [i] Eski config formati algilandi, Ollama olarak yuklendi")
 
         for name, cfg in providers_cfg.items():
             if not cfg.get("enabled", False):
-                print(f"[LLMPool] ⏭️ {name} devre dışı, atlanıyor")
+                try:
+                    print(f"[LLMPool] ⏭️ {name} devre dışı, atlanıyor")
+                except Exception:
+                    print(f"[LLMPool] [>] {name} devre disi, atlaniyor")
                 continue
             try:
                 provider = _create_provider(name, cfg)
