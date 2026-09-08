@@ -34,6 +34,8 @@ if sys.platform == "win32":
 
 from app_config import get_app_config_value, load_app_config
 from core.audio_processor import process_voice_audio
+from core.phonetic_normalizer import normalize_text_for_speech
+
 
 
 def _convert_audio_file(src_path: str, dst_path: str, dst_format: str = "wav") -> bool:
@@ -103,10 +105,35 @@ class VoiceEngine:
         voice: str,
         rate: str,
         pitch: str,
+        language: str = "tr",
     ) -> bool:
         """Edge-TTS ile metni yüksek kaliteli MP3/WAV formatında sentezler."""
         try:
             import edge_tts
+            import edge_tts.communicate
+
+            # Turkish / Multilingual SSML Dil Uyarlaması
+            # edge_tts varsayılan olarak xml:lang='en-US' gönderir; bu da Ava ve çok dilli modellerin
+            # Türkçe harfleri İngilizce fonetikle okumasına sebep olur.
+            # xml:lang='tr-TR' olarak ayarlandığında model doğrudan Türkçe fonetik kurallarını çalıştırır.
+            v_lower = voice.lower()
+            lang_code = "tr-TR" if (language.lower().startswith("tr") or "multilingual" in v_lower or "tr-" in v_lower) else "en-US"
+
+            def _dynamic_mkssml(tc, escaped_text):
+                if isinstance(escaped_text, bytes):
+                    escaped_text = escaped_text.decode("utf-8")
+                return (
+                    f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{lang_code}'>"
+                    f"<voice name='{tc.voice}'>"
+                    f"<prosody pitch='{tc.pitch}' rate='{tc.rate}' volume='{tc.volume}'>"
+                    f"{escaped_text}"
+                    f"</prosody>"
+                    f"</voice>"
+                    f"</speak>"
+                )
+
+            edge_tts.communicate.mkssml = _dynamic_mkssml
+
             communicate = edge_tts.Communicate(
                 text=text,
                 voice=voice,
@@ -163,6 +190,9 @@ class VoiceEngine:
         eff_gain = float(gain if gain is not None else app_cfg.get("voice_gain", 1.05))
         effects_enabled = app_cfg.get("voice_effects_enabled", True) if apply_effects else False
 
+        # Fonetik normalizasyon ve telaffuz eğitimi (Ava ve multilingual harf düzeltmeleri)
+        norm_text = normalize_text_for_speech(clean_text, voice=active_voice)
+
         temp_files_to_clean = []
         success = False
         temp_raw = None
@@ -178,11 +208,12 @@ class VoiceEngine:
                 try:
                     success = loop.run_until_complete(
                         self._synthesize_edge_tts(
-                            text=clean_text,
+                            text=norm_text,
                             output_path=temp_raw,
                             voice=active_voice,
                             rate=user_rate,
                             pitch=user_pitch,
+                            language=lang_key,
                         )
                     )
                 finally:
@@ -191,6 +222,7 @@ class VoiceEngine:
             except Exception as e:
                 print(f"[VoiceEngine] Edge-TTS sentezleme denemesi başarısız: {e}")
                 success = False
+
 
             # 2. Aşama: Eğer Edge-TTS başarısızsa Piper Offline Sentezleme
             if not success:

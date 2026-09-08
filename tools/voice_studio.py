@@ -44,6 +44,8 @@ if str(ROOT_DIR) not in sys.path:
 
 from app_config import load_app_config, save_app_config
 from core.voice_engine import get_voice_engine
+from core.phonetic_normalizer import load_lexicon, set_pronunciation, remove_pronunciation
+
 
 # ── Cyber HUD Renk Paleti ───────────────────────────────────────────────────
 C_BG = "#020c0c"
@@ -264,12 +266,20 @@ class VoiceStudioApp:
         )
         self.btn_reset.pack(side="left", padx=(0, 6))
 
+        self.btn_trainer = tk.Button(
+            ctrl_frame, text="🎯 TELAFFUZ EĞİTİMİ", command=self._open_pronunciation_trainer,
+            bg="#163836", fg=C_GOLD, activebackground=C_MID, activeforeground=C_TEXT,
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=7
+        )
+        self.btn_trainer.pack(side="left", padx=(0, 6))
+
         self.btn_save = tk.Button(
             ctrl_frame, text="💾 AYARLARI KAYDET & UYGULA", command=self._save_settings,
             bg="#0f3b38", fg=C_GOLD, activebackground=C_GOLD, activeforeground=C_BG,
             font=("Segoe UI", 9, "bold"), borderwidth=0, cursor="hand2", padx=14, pady=7
         )
         self.btn_save.pack(side="right")
+
 
         # Durum Çubuğu
         status_lbl = tk.Label(
@@ -471,6 +481,127 @@ class VoiceStudioApp:
             f"• Çıktı Kazancı: {self.gain_var.get():.2f}x\n\n"
             f"Artık EDITH'in tüm yanıtlarında ve masaüstü konuşmalarında bu zarif ses kullanılacaktır."
         )
+
+    def _open_pronunciation_trainer(self):
+        """Kullanıcının Ava ve diğer modeller için kelime ve harf okunuşlarını eğittiği panel."""
+        trainer = tk.Toplevel(self.root)
+        trainer.title("🎯 E.D.I.T.H — Fonetik Harf & Telaffuz Eğitmeni")
+        trainer.geometry("580x540")
+        trainer.minsize(520, 480)
+        trainer.configure(bg=C_BG)
+        trainer.transient(self.root)
+
+        tk.Label(
+            trainer, text="🎯 SES & HARF TELAFFUZ EĞİTİMİ",
+            fg=C_PRI, bg=C_BG, font=("Consolas", 13, "bold")
+        ).pack(anchor="w", padx=16, pady=(12, 2))
+
+        tk.Label(
+            trainer, text="Ava ve diğer modeller için harfleri ve kelimeleri kulağınıza göre eğitin:",
+            fg="#7ab8b2", bg=C_BG, font=("Segoe UI", 8)
+        ).pack(anchor="w", padx=16, pady=(0, 8))
+
+        # Liste çerçevesi
+        frame_list = tk.Frame(trainer, bg=C_PANEL)
+        frame_list.pack(fill="both", expand=True, padx=16, pady=4)
+
+        columns = ("word", "phoneme")
+        tree = ttk.Treeview(frame_list, columns=columns, show="headings", height=9)
+        tree.heading("word", text="Kelime / İfade (Yazılan)")
+        tree.heading("phoneme", text="Fonetik Okunuş (Modelin Okuyacağı)")
+        tree.column("word", width=220)
+        tree.column("phoneme", width=270)
+        tree.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(frame_list, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+
+        def _refresh_tree():
+            tree.delete(*tree.get_children())
+            lex = load_lexicon()
+            for w, p in sorted(lex.items()):
+                tree.insert("", "end", values=(w, p))
+
+        _refresh_tree()
+
+        # Giriş formu
+        form = tk.Frame(trainer, bg=C_PANEL, padx=10, pady=8)
+        form.pack(fill="x", padx=16, pady=8)
+
+        tk.Label(form, text="Kelime:", fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=0, sticky="w")
+        ent_word = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=20)
+        ent_word.grid(row=0, column=1, padx=6, pady=4, sticky="w")
+
+        tk.Label(form, text="Okunuş:", fg=C_PRI, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=2, sticky="w", padx=(10, 0))
+        ent_phoneme = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=24)
+        ent_phoneme.grid(row=0, column=3, padx=6, pady=4, sticky="w")
+
+        def _on_tree_select(event):
+            selected = tree.selection()
+            if selected:
+                item = tree.item(selected[0])
+                vals = item.get("values", [])
+                if len(vals) >= 2:
+                    ent_word.delete(0, "end")
+                    ent_word.insert(0, str(vals[0]))
+                    ent_phoneme.delete(0, "end")
+                    ent_phoneme.insert(0, str(vals[1]))
+
+        tree.bind("<<TreeviewSelect>>", _on_tree_select)
+
+        # Butonlar
+        btn_box = tk.Frame(trainer, bg=C_BG)
+        btn_box.pack(fill="x", padx=16, pady=(0, 12))
+
+        def _add_or_update():
+            w = ent_word.get().strip()
+            p = ent_phoneme.get().strip()
+            if not w or not p:
+                messagebox.showwarning("Eksik Bilgi", "Lütfen hem kelimeyi hem de nasıl okunacağını girin.", parent=trainer)
+                return
+            set_pronunciation(w, p)
+            _refresh_tree()
+            ent_word.delete(0, "end")
+            ent_phoneme.delete(0, "end")
+
+        def _delete_selected():
+            w = ent_word.get().strip()
+            if not w:
+                selected = tree.selection()
+                if selected:
+                    w = str(tree.item(selected[0])["values"][0])
+            if w:
+                remove_pronunciation(w)
+                _refresh_tree()
+                ent_word.delete(0, "end")
+                ent_phoneme.delete(0, "end")
+
+        def _test_word():
+            p = ent_phoneme.get().strip() or ent_word.get().strip()
+            if not p:
+                return
+            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
+            threading.Thread(
+                target=lambda: self.engine.speak(p, language="tr", blocking=True),
+                daemon=True
+            ).start()
+
+        tk.Button(
+            btn_box, text="💾 Kuralı Kaydet", command=_add_or_update,
+            bg=C_MID, fg="#ffffff", font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_box, text="🗑️ Seçiliyi Sil", command=_delete_selected,
+            bg="#2a0d14", fg=C_RED, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_box, text="🔊 Canlı Dinle", command=_test_word,
+            bg="#0f3b38", fg=C_GOLD, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+        ).pack(side="right")
+
 
 
 
