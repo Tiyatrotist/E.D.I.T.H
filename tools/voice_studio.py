@@ -67,9 +67,11 @@ PRESET_SENTENCES = [
 ]
 
 VOICE_OPTIONS = [
-    ("tr-TR-EmelNeural", "Zarif & Naif Kadın (EmelNeural — Varsayılan)"),
-    ("tr-TR-AhmetNeural", "Karizmatik Erkek (AhmetNeural)"),
-    ("tr_TR-dfki-medium", "Piper Çevrimdışı Kadın (Offline Fallback)"),
+    ("tr-TR-EmelNeural", "🌸 Emel — Doğal & Naif Kadın (Türkçe Varsayılan)"),
+    ("en-US-AvaMultilingualNeural", "✨ Ava — Fütüristik & Zarif Kadın (Marvel EDITH / Samantha)"),
+    ("en-US-EmmaMultilingualNeural", "☕ Emma — Sıcak & Şefkatli Kadın (Dinlendirici)"),
+    ("fr-FR-VivienneMultilingualNeural", "👑 Vivienne — Asil & Kibar Kadın (Akıcı)"),
+    ("tr-TR-AhmetNeural", "🛡️ Ahmet — Karizmatik Erkek (Stark)"),
 ]
 
 
@@ -77,16 +79,24 @@ class VoiceStudioApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("E.D.I.T.H — Zarif Ses Stüdyosu & Akustik Kalibrasyon")
-        self.root.geometry("680x820")
-        self.root.minsize(620, 750)
+        self.root.geometry("700x820")
+        self.root.minsize(640, 750)
         self.root.configure(bg=C_BG)
 
         self.cfg = load_app_config()
         self.engine = get_voice_engine()
 
+        # Ses modeli haritalaması
+        self.voice_map = {label: vid for vid, label in VOICE_OPTIONS}
+        self.rev_voice_map = {vid: label for vid, label in VOICE_OPTIONS}
+
+        current_voice = self.cfg.get("voice_primary", "tr-TR-EmelNeural")
+        if current_voice not in self.rev_voice_map:
+            current_voice = "tr-TR-EmelNeural"
+
         # Değişkenler
         self.selected_preset_var = tk.StringVar(value=PRESET_SENTENCES[0][1])
-        self.voice_var = tk.StringVar(value=self.cfg.get("voice_primary", "tr-TR-EmelNeural"))
+        self.voice_label_var = tk.StringVar(value=self.rev_voice_map[current_voice])
         self.effects_var = tk.BooleanVar(value=bool(self.cfg.get("voice_effects_enabled", True)))
         self.rate_var = tk.IntVar(value=int(self.cfg.get("voice_rate_int", -3)))
         self.pitch_var = tk.IntVar(value=int(self.cfg.get("voice_pitch_int", 2)))
@@ -94,7 +104,7 @@ class VoiceStudioApp:
         self.spatial_var = tk.DoubleVar(value=float(self.cfg.get("voice_spatial", 0.12)))
         self.gain_var = tk.DoubleVar(value=float(self.cfg.get("voice_gain", 1.05)))
 
-        self.status_var = tk.StringVar(value="● Hazır — Bir cümle seçip 'DİNLE & TEST ET' butonuna basın.")
+        self.status_var = tk.StringVar(value="● Hazır — Bir model ve cümle seçip 'DİNLE & TEST ET' butonuna basın.")
         self.is_playing = False
         self._anim_running = False
 
@@ -128,13 +138,13 @@ class VoiceStudioApp:
         top_bar.pack(fill="x", padx=18, pady=(6, 4))
 
         tk.Label(
-            top_bar, text="🎙️ Nöral Ses Modeli:",
+            top_bar, text="🎙️ Ses Karakteri:",
             fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")
         ).pack(side="left", padx=(10, 6), pady=6)
 
         self.voice_combo = ttk.Combobox(
-            top_bar, textvariable=self.voice_var, state="readonly", width=34,
-            values=[opt[0] for opt in VOICE_OPTIONS]
+            top_bar, textvariable=self.voice_label_var, state="readonly", width=42,
+            values=[label for _, label in VOICE_OPTIONS]
         )
         self.voice_combo.pack(side="left", padx=4, pady=6)
 
@@ -145,6 +155,7 @@ class VoiceStudioApp:
             selectcolor="#020d0d", font=("Segoe UI", 8, "bold")
         )
         chk_effects.pack(side="right", padx=(6, 10), pady=6)
+
 
         # 3. Örnek Cümle Seçimi (Persona Presetleri)
         box_sentences = tk.LabelFrame(
@@ -350,7 +361,8 @@ class VoiceStudioApp:
         self._play_current_async()
 
     def _reset_defaults(self):
-        self.voice_var.set("tr-TR-EmelNeural")
+        default_label = self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0])
+        self.voice_label_var.set(default_label)
         self.effects_var.set(True)
         self.rate_var.set(-3)
         self.pitch_var.set(2)
@@ -378,7 +390,7 @@ class VoiceStudioApp:
         warmth = self.warmth_var.get()
         spatial = self.spatial_var.get()
         gain = self.gain_var.get()
-        voice = self.voice_var.get()
+        voice_id = self.voice_map.get(self.voice_label_var.get(), "tr-TR-EmelNeural")
         effects_enabled = self.effects_var.get()
 
         def _worker():
@@ -394,7 +406,7 @@ class VoiceStudioApp:
                     output_path=temp_path,
                     language="tr",
                     apply_effects=effects_enabled,
-                    voice=voice,
+                    voice=voice_id,
                     rate=rate_str,
                     pitch=pitch_str,
                     warmth=warmth,
@@ -432,9 +444,10 @@ class VoiceStudioApp:
     def _save_settings(self):
         rate_str = f"{'+' if self.rate_var.get() > 0 else ''}{self.rate_var.get()}%"
         pitch_str = f"{'+' if self.pitch_var.get() > 0 else ''}{self.pitch_var.get()}Hz"
+        selected_vid = self.voice_map.get(self.voice_label_var.get(), "tr-TR-EmelNeural")
 
         cfg = load_app_config()
-        cfg["voice_primary"] = self.voice_var.get()
+        cfg["voice_primary"] = selected_vid
         cfg["voice_effects_enabled"] = self.effects_var.get()
         cfg["voice_rate"] = rate_str
         cfg["voice_rate_int"] = self.rate_var.get()
@@ -448,7 +461,8 @@ class VoiceStudioApp:
         messagebox.showinfo(
             "E.D.I.T.H Ses Stüdyosu",
             f"✅ EDITH Ses & Karakter Ayarları Kaydedildi!\n\n"
-            f"• Ses Modeli: {self.voice_var.get()}\n"
+            f"• Ses Karakteri: {self.voice_label_var.get()}\n"
+            f"• Model Kimliği: {selected_vid}\n"
             f"• Akustik Efektler: {'Etkin (Açık)' if self.effects_var.get() else 'Devre Dışı'}\n"
             f"• Hız (Rate): {rate_str}\n"
             f"• Perde / Naiflik: {pitch_str}\n"
@@ -457,6 +471,7 @@ class VoiceStudioApp:
             f"• Çıktı Kazancı: {self.gain_var.get():.2f}x\n\n"
             f"Artık EDITH'in tüm yanıtlarında ve masaüstü konuşmalarında bu zarif ses kullanılacaktır."
         )
+
 
 
 def open_voice_studio(parent=None):
