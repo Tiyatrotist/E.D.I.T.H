@@ -107,6 +107,17 @@ class SettingsDialog:
         self.discord_enabled_var = tk.BooleanVar(value=bool(discord_cfg.get("enabled", False)))
         self.discord_token_var = tk.StringVar(value=str(discord_cfg.get("bot_token", "")))
 
+        # ── 5. Yaşam & Refakatçi (Activity Supervisor) ──────────────────────
+        sup_cfg = self.cfg.get("activity_supervisor", {})
+        self.supervisor_enabled_var = tk.BooleanVar(value=bool(sup_cfg.get("enabled", True)))
+        self.supervisor_dnd_var = tk.BooleanVar(value=bool(sup_cfg.get("dnd_enabled", False)))
+        self.supervisor_voice_var = tk.BooleanVar(value=bool(sup_cfg.get("voice_alerts_enabled", True)))
+        self.supervisor_idle_welcome_var = tk.BooleanVar(value=bool(sup_cfg.get("idle_welcome_enabled", True)))
+        self.supervisor_night_reminder_var = tk.BooleanVar(value=bool(sup_cfg.get("night_reminder_enabled", True)))
+        self.supervisor_work_break_var = tk.IntVar(value=int(sup_cfg.get("work_break_mins", 90)))
+        self.supervisor_gaming_limit_var = tk.IntVar(value=int(sup_cfg.get("gaming_limit_mins", 90)))
+        self.supervisor_cooldown_var = tk.IntVar(value=int(sup_cfg.get("cooldown_mins", 30)))
+
     def open(self):
         """Ayarlar penceresini oluşturur ve açar."""
         if self.window is not None:
@@ -167,6 +178,7 @@ class SettingsDialog:
         self._build_stt_tab(notebook)
         self._build_tts_tab(notebook)
         self._build_integrations_tab(notebook)
+        self._build_supervisor_tab(notebook)
 
         # Alt Buton Barı (Her zaman görünür ve sabit)
         btn_frame = tk.Frame(main_frame, bg=C_PANEL, highlightbackground=C_DIM, highlightthickness=1)
@@ -743,6 +755,87 @@ class SettingsDialog:
         tk.Label(s_frame, text="SIP Şifresi:", fg=C_TEXT, bg=C_PANEL, font=font_body(8)).pack(anchor="w", padx=10)
         tk.Entry(s_frame, textvariable=self.sip_password_var, bg=C_ENTRY_BG, fg=C_TEXT, insertbackground=C_PRI, font=font_body(9), show="*").pack(fill="x", padx=10, pady=(1, 6))
 
+    # ── TAB 6: Yaşam & Refakatçi (Activity Supervisor) ──────────────────────
+
+    def _build_supervisor_tab(self, notebook: ttk.Notebook):
+        frame = tk.Frame(notebook, bg=C_PANEL)
+        notebook.add(frame, text="🛡️ Yaşam & Refakatçi")
+
+        # 1. Genel Refakatçi Anahtarları
+        s_box = tk.LabelFrame(
+            frame, text=" 🛡️ Canlı Bilgisayar Asistanı & Yaşam Koçu ",
+            bg=C_PANEL, fg=C_PRI, font=font_body_bold(9)
+        )
+        s_box.pack(fill="x", padx=14, pady=10)
+
+        tk.Checkbutton(
+            s_box, text="Canlı Refakatçi ve Etkinlik Takibini Etkinleştir",
+            variable=self.supervisor_enabled_var,
+            fg=C_TEXT, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_PRI, activebackground=C_PANEL, font=font_body(9)
+        ).pack(anchor="w", padx=10, pady=3)
+
+        tk.Checkbutton(
+            s_box, text="Rahatsız Etme Modu (DND - Tüm sesli müdahaleleri sustur)",
+            variable=self.supervisor_dnd_var,
+            fg=C_GOLD, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_GOLD, activebackground=C_PANEL, font=font_body(9)
+        ).pack(anchor="w", padx=10, pady=3)
+
+        tk.Checkbutton(
+            s_box, text="Sesli Müdahale & Tavsiyeler (Doğal Türkçe Ses)",
+            variable=self.supervisor_voice_var,
+            fg=C_TEXT, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_PRI, activebackground=C_PANEL, font=font_body(9)
+        ).pack(anchor="w", padx=10, pady=3)
+
+        tk.Checkbutton(
+            s_box, text="Masaya Dönüş Karşılaması (10+ dk boşta kaldıktan sonra)",
+            variable=self.supervisor_idle_welcome_var,
+            fg=C_TEXT, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_PRI, activebackground=C_PANEL, font=font_body(9)
+        ).pack(anchor="w", padx=10, pady=3)
+
+        tk.Checkbutton(
+            s_box, text="Gece Geç Saat Dinlenme Uyarısı (01:00 - 05:00 arası)",
+            variable=self.supervisor_night_reminder_var,
+            fg=C_TEXT, bg=C_PANEL, selectcolor=C_DIM, activeforeground=C_PRI, activebackground=C_PANEL, font=font_body(9)
+        ).pack(anchor="w", padx=10, pady=3)
+
+        # 2. Eşik Değerleri
+        th_box = tk.LabelFrame(
+            frame, text=" ⏱️ Eşik ve Hatırlatma Süreleri (Dakika) ",
+            bg=C_PANEL, fg=C_BLUE, font=font_body_bold(9)
+        )
+        th_box.pack(fill="x", padx=14, pady=(0, 10))
+
+        r1 = tk.Frame(th_box, bg=C_PANEL)
+        r1.pack(fill="x", padx=10, pady=4)
+        tk.Label(r1, text="Çalışma Mola Hatırlatması (Aralıksız Kodlama/Ofis):", fg=C_TEXT, bg=C_PANEL, font=font_body(9)).pack(side="left")
+        tk.Spinbox(r1, from_=15, to=240, increment=15, textvariable=self.supervisor_work_break_var, width=6, bg=C_ENTRY_BG, fg=C_TEXT, buttonbackground=C_DIM).pack(side="right")
+
+        r2 = tk.Frame(th_box, bg=C_PANEL)
+        r2.pack(fill="x", padx=10, pady=4)
+        tk.Label(r2, text="Oyun Süresi Uyarısı (Çalışmaya Dönüş Tavsiyesi):", fg=C_TEXT, bg=C_PANEL, font=font_body(9)).pack(side="left")
+        tk.Spinbox(r2, from_=15, to=240, increment=15, textvariable=self.supervisor_gaming_limit_var, width=6, bg=C_ENTRY_BG, fg=C_TEXT, buttonbackground=C_DIM).pack(side="right")
+
+        r3 = tk.Frame(th_box, bg=C_PANEL)
+        r3.pack(fill="x", padx=10, pady=4)
+        tk.Label(r3, text="Müdahaleler Arası Soğuma (Anti-Spam Cooldown):", fg=C_TEXT, bg=C_PANEL, font=font_body(9)).pack(side="left")
+        tk.Spinbox(r3, from_=10, to=120, increment=5, textvariable=self.supervisor_cooldown_var, width=6, bg=C_ENTRY_BG, fg=C_TEXT, buttonbackground=C_DIM).pack(side="right")
+
+        # 3. Canlı Rapor Butonu
+        def _show_live_report():
+            try:
+                from actions.activity_supervisor import get_activity_report
+                report = get_activity_report()
+                messagebox.showinfo("Canlı Yaşam Raporu", report)
+            except Exception as ex:
+                messagebox.showwarning("Rapor Hatası", f"Rapor alınamadı: {ex}")
+
+        tk.Button(
+            frame, text="📊 ANLIK ETKİNLİK VE YAŞAM RAPORUNU GÖSTER",
+            command=_show_live_report,
+            bg=C_DIM, fg=C_PRI, activebackground=C_MID, activeforeground=C_TEXT,
+            font=font_body_bold(9), borderwidth=1, cursor="hand2", pady=6
+        ).pack(fill="x", padx=14, pady=6)
+
     # ── Kaydet & Kapat ──────────────────────────────────────────────────────
 
     def _save_settings(self):
@@ -781,6 +874,16 @@ class SettingsDialog:
                 "server_url": self.server_url_var.get(),
                 "enabled": self.server_sync_enabled_var.get(),
                 "notify_new_calls_voice": self.server_notify_voice_var.get(),
+            },
+            "activity_supervisor": {
+                "enabled": self.supervisor_enabled_var.get(),
+                "dnd_enabled": self.supervisor_dnd_var.get(),
+                "voice_alerts_enabled": self.supervisor_voice_var.get(),
+                "idle_welcome_enabled": self.supervisor_idle_welcome_var.get(),
+                "night_reminder_enabled": self.supervisor_night_reminder_var.get(),
+                "work_break_mins": self.supervisor_work_break_var.get(),
+                "gaming_limit_mins": self.supervisor_gaming_limit_var.get(),
+                "cooldown_mins": self.supervisor_cooldown_var.get(),
             },
         }
 

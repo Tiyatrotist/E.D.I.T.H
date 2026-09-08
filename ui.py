@@ -499,6 +499,7 @@ class EdithUI:
         self._api_calls = deque(maxlen=25)
         self._active_model_name = "LLM HAZIR"
         self._operating_mode = "MOD: HİBRİT"
+        self._activity_badge = "💻 Hazır"
         self._on_mode_change_callback = None
         self._panel_focus = ""
         self._panel_focus_until = 0.0
@@ -2040,6 +2041,15 @@ class EdithUI:
             self._operating_mode = clean_text
         self.root.after(0, _do)
 
+    def set_activity_badge(self, badge_text: str):
+        """HUD üst çubuğunda ve telemetride görünen canlı aktivite durumunu günceller."""
+        if not badge_text:
+            return
+        clean_text = str(badge_text).strip()
+        def _do():
+            self._activity_badge = clean_text
+        self.root.after(0, _do)
+
     def record_api_call(self, name: str, status: str = "OK", detail: str = ""):
         """Son API veya araç çağrısını telemetri paneline iş parçacığı güvenli şekilde ekler."""
         t_str = time.strftime("%H:%M:%S")
@@ -2376,6 +2386,10 @@ class EdithUI:
                               fill=muted_gold, font=font_body_bold(11), anchor="w")
                 c.create_text(section_x+section_pad, current_y+138, text=time.strftime("%A").upper(),
                               fill=muted_text, font=font_body(10), anchor="w")
+                act_badge = getattr(self, "_activity_badge", "💻 Hazır")
+                c.create_text(section_x+section_pad, current_y+156, text=f"AKTİVİTE: {act_badge}",
+                              fill=muted_green if "Kodlama" in act_badge else (muted_gold if "Oyun" in act_badge else muted_primary),
+                              font=font_body_bold(9), anchor="w")
 
             elif section == "api_telemetry":
                 call_count = len(self._api_calls)
@@ -2722,7 +2736,11 @@ class EdithUI:
 
         # Sol: model badge ve çalışma modu
         mode_str = getattr(self, "_operating_mode", "MOD: HİBRİT")
-        c.create_text(22, 30, text=f"{MODEL_BADGE} | {mode_str}",
+        act_str = getattr(self, "_activity_badge", "")
+        left_hdr = f"{MODEL_BADGE} | {mode_str}"
+        if act_str:
+            left_hdr += f" | {act_str}"
+        c.create_text(22, 30, text=left_hdr,
                       fill=C_DIM, font=font_body(10), anchor="w")
 
         # Sağ: durum indikatörü

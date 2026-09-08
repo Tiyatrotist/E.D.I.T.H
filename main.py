@@ -69,6 +69,13 @@ from actions.web_search import search_news, web_search
 from actions.whatsapp import save_whatsapp_contact, send_whatsapp_message
 from actions.youtube_stats import get_youtube_channel_report
 from actions.youtube_video import open_youtube_url, search_and_play_youtube
+from actions.activity_supervisor import (
+    get_activity_report,
+    get_activity_supervisor,
+    set_dnd_mode,
+    snooze_activity_alerts,
+)
+from core.activity_tracker import get_activity_tracker
 
 # ── Services ─────────────────────────────────────────────────────────────────
 from core.chat_history import get_chat_history
@@ -130,6 +137,9 @@ Kullanabileceğin araçlar:
 - send_whatsapp_message(message, phone_number, recipient_name, send_now): WhatsApp mesajı hazırla veya gönder
 - save_whatsapp_contact(display_name, phone_number, aliases): WhatsApp rehberine yeni kişi kaydet
 - send_message(recipient, message, platform): WhatsApp, Telegram veya Instagram DM mesajı gönder (platform: 'whatsapp', 'telegram' veya 'instagram')
+- get_activity_report(): Kullanıcının bugünkü toplam çalışma, oyun, medya ve dinlenme sürelerini içeren yaşam raporunu sun
+- set_dnd_mode(enabled): Rahatsız etme modunu (DND) aç veya kapat (enabled: true/false veya boş)
+- snooze_activity_alerts(minutes): Mola ve oyun hatırlatmalarını belirtilen dakika kadar ertele
 - save_memory(category, key, value): Hafızaya kaydet
 - delete_memory(category, key, match_text): Hafızadan sil
 
@@ -155,6 +165,9 @@ Available tools:
 - control_computer(action, value): Computer control (volume, brightness, lock, sleep)
 - manage_files(action, path, content, dest_path): File CRUD
 - send_message(recipient, message, platform): Send WhatsApp, Telegram or Instagram DM message (platform: 'whatsapp', 'telegram' or 'instagram')
+- get_activity_report(): Summary of today's work, gaming, media and idle time
+- set_dnd_mode(enabled): Toggle or set Do Not Disturb mode
+- snooze_activity_alerts(minutes): Snooze break and activity reminders
 - analyze_screen(query): Analyze screen content
 - save_memory(category, key, value): Save memory
 
@@ -238,6 +251,8 @@ class EdithLive:
         # Eklenti ve Proaktif Motor
         self.plugins: PluginRegistry = discover_plugins()
         self.proactive: ProactiveEngine = ProactiveEngine()
+        self.activity_tracker = get_activity_tracker()
+        self.activity_supervisor = get_activity_supervisor()
         self.last_user_interaction_time = time.monotonic()
 
     def set_speaking(self, val: bool):
@@ -255,6 +270,8 @@ class EdithLive:
         try:
             self._stop_requested.set()
             self.set_speaking(False)
+            if hasattr(self, "activity_tracker") and self.activity_tracker:
+                self.activity_tracker.stop()
             if hasattr(self, "ui") and self.ui and hasattr(self.ui, "root"):
                 self.ui.root.destroy()
         except Exception as e:
@@ -566,6 +583,21 @@ class EdithLive:
                 )
                 result = r or "WhatsApp mesajı gönderildi."
 
+            # ── YAŞAM & REFAKATÇİ (ACTIVITY SUPERVISOR) ─────────────────────
+            elif name == "get_activity_report":
+                r = await loop.run_in_executor(None, get_activity_report)
+                result = r or "Aktivite raporu hazırlandı."
+
+            elif name == "set_dnd_mode":
+                val = args.get("enabled")
+                r = await loop.run_in_executor(None, lambda: set_dnd_mode(val))
+                result = r or "Rahatsız etme modu güncellendi."
+
+            elif name == "snooze_activity_alerts":
+                mins = int(args.get("minutes", 30))
+                r = await loop.run_in_executor(None, lambda: snooze_activity_alerts(mins))
+                result = r or f"Uyarılar {mins} dakika ertelendi."
+
             elif name == "save_whatsapp_contact":
                 r = await loop.run_in_executor(
                     None, lambda: save_whatsapp_contact(
@@ -860,23 +892,39 @@ class EdithLive:
             return ""
 
     async def _proactive_and_monitor_loop(self):
-        """Arka plan proaktif konuşma ve donanım/konu izleme döngüsü."""
+        """Arka plan proaktif konuşma, canlı aktivite ve donanım izleme döngüsü."""
+        loop_count = 0
         while True:
-            await asyncio.sleep(30)
-            if self._paused or self._is_speaking:
-                continue
+            await asyncio.sleep(10)
+            loop_count += 1
 
-            # 1. Donanım alarm kontrolü
-            alert = check_system_alerts()
-            if alert:
-                self.ui.write_log(f"UYARI: {alert}")
-                await self._handle_command(f"Sistem donanım uyarısı aldım: {alert}. Kullanıcıya kısa bir ikaz yap.")
+            # 1. Canlı Aktivite Takibi ve Rozet Güncellemesi (Her 10 sn)
+            if hasattr(self, "activity_tracker") and hasattr(self.ui, "set_activity_badge"):
+                badge = self.activity_tracker.get_formatted_badge()
+                self.ui.set_activity_badge(badge)
 
-            # 2. Proaktif konuşma kontrolü
-            if self.proactive.should_trigger(self.last_user_interaction_time, self._is_speaking):
-                prompt = self.proactive.build_prompt()
-                self.proactive.mark_triggered()
-                await self._handle_command(prompt)
+            # 2. Canlı Refakatçi & Yaşam Koçu Değerlendirmesi
+            if hasattr(self, "activity_supervisor") and not self._paused and not self._is_speaking:
+                self.activity_supervisor.check_and_intervene(
+                    ui_callback=lambda txt: self.ui.write_log(txt)
+                )
+
+            # 3. 30 saniyede bir donanım alarmları ve klasik proaktif mesajlar
+            if loop_count % 3 == 0:
+                if self._paused or self._is_speaking:
+                    continue
+
+                # Donanım alarm kontrolü
+                alert = check_system_alerts()
+                if alert:
+                    self.ui.write_log(f"UYARI: {alert}")
+                    await self._handle_command(f"Sistem donanım uyarısı aldım: {alert}. Kullanıcıya kısa bir ikaz yap.")
+
+                # Proaktif konuşma kontrolü
+                if self.proactive.should_trigger(self.last_user_interaction_time, self._is_speaking):
+                    prompt = self.proactive.build_prompt()
+                    self.proactive.mark_triggered()
+                    await self._handle_command(prompt)
 
     async def run(self):
         print("[EDITH] 🚀 Başlatılıyor...")
@@ -965,7 +1013,10 @@ class EdithLive:
             if role == "server" and discord_cfg.get("enabled", False):
                 start_discord_bot_background()
 
-            # 5. Proaktif & Monitör Arka Plan Görevi
+            # 5. Canlı Etkinlik Takipçisini Başlat (Living Companion Tracker)
+            self.activity_tracker.start()
+
+            # 6. Proaktif & Monitör Arka Plan Görevi
             asyncio.create_task(self._proactive_and_monitor_loop())
 
             # Ana döngü — sürekli STT dinleme
