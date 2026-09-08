@@ -96,4 +96,56 @@ def send_message(
         except Exception as e:
             return f"Telegram açılamadı: {e}"
 
+    # 3. INSTAGRAM DIRECT (Otonom Masaüstü Operatörü)
+    elif platform in ("instagram", "isntagram", "insta"):
+        dm_url = "https://www.instagram.com/direct/inbox/"
+        try:
+            webbrowser.open(dm_url)
+        except Exception as e:
+            return f"Instagram açılamadı: {e}"
+
+        def _automate_instagram_message():
+            import time
+            import threading
+            from actions.mouse import write_text, press_key, _tap_mouse
+            # Tarayıcının açılması ve sayfanın oturması için bekle
+            time.sleep(3.5)
+            try:
+                import ctypes
+                user32 = getattr(ctypes, "windll", None).user32 if hasattr(ctypes, "windll") else None
+                if not user32:
+                    return
+                # Ekran çözünürlüğünü al
+                sw = user32.GetSystemMetrics(0)
+                sh = user32.GetSystemMetrics(1)
+
+                # 1. Adım: Sol listedeki ilk konuşmaya odaklanıp tıkla
+                first_chat_x = int(sw * 0.28)
+                first_chat_y = int(sh * 0.28)
+                user32.SetCursorPos(first_chat_x, first_chat_y)
+                time.sleep(0.3)
+                _tap_mouse("left", 1)
+                time.sleep(1.2)
+
+                # 2. Adım: Mesaj yazma kutusuna odaklan (sağ alt alan)
+                input_x = int(sw * 0.62)
+                input_y = int(sh * 0.92)
+                user32.SetCursorPos(input_x, input_y)
+                time.sleep(0.3)
+                _tap_mouse("left", 1)
+                time.sleep(0.5)
+
+                # 3. Adım: Mesajı yaz ve Enter tuşuna bas
+                out_msg = message or "Test mesajı — E.D.I.T.H AI Asistanı"
+                write_text(out_msg)
+                time.sleep(0.4)
+                press_key("return")
+                print(f"[SendMessage] ✅ Instagram DM mesajı başarıyla yazıldı ve iletildi: {out_msg}")
+            except Exception as ex:
+                print(f"[SendMessage] ⚠️ Instagram DM otomasyon uyarısı: {ex}")
+
+        import threading
+        threading.Thread(target=_automate_instagram_message, daemon=True).start()
+        return f"Instagram Direkt Mesaj kutunuz tarayıcıda açıldı. Son mesaja '{message}' iletiliyor efendim."
+
     return f"Desteklenmeyen mesajlaşma platformu: {platform}"

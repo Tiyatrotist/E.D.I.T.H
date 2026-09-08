@@ -473,6 +473,9 @@ class EdithUI:
         self._compact_prev_fullscreen = False
         self._compact_prev_overrideredirect = False
 
+        # Pencere boyutu değiştikçe chat ve girdi alanını dinamik yeniden boyutlandır
+        self.root.bind("<Configure>", self._on_window_configure)
+
         self._set_layout_metrics(self.W, self.H)
 
         # ── State ────────────────────────────────────────────────────────────
@@ -493,11 +496,10 @@ class EdithUI:
         self._user_speaking_until = 0.0
 
     
-        self._weather_card = {
-            "city": "Istanbul",
-            "primary": "--",
-            "details": ["Hava durumu yükleniyor..."],
-        }
+        self._api_calls = deque(maxlen=25)
+        self._active_model_name = "LLM HAZIR"
+        self._operating_mode = "MOD: HİBRİT"
+        self._on_mode_change_callback = None
         self._panel_focus = ""
         self._panel_focus_until = 0.0
         self._brief_refresh_busy = False
@@ -623,6 +625,7 @@ class EdithUI:
         self._build_shutdown_button()
         self._build_settings_panel()
         self._build_header_settings_btn()
+        self._build_header_mobile_btn()
         self._build_voice_selector(self._settings_body)
         self._build_sfx_button(self._settings_body)
         self._build_api_button(self._settings_body)
@@ -788,8 +791,8 @@ class EdithUI:
     def _set_layout_metrics(self, width: int, height: int):
         self.W = int(width)
         self.H = int(height)
-        self.LEFT_W = min(LEFT_W_T, int(self.W * 0.23))
-        self.RIGHT_W = min(RIGHT_W_T, int(self.W * 0.25))
+        self.LEFT_W = max(220, min(LEFT_W_T, int(self.W * 0.22)))
+        self.RIGHT_W = max(320, min(650, int(self.W * 0.28)))
         center_w = self.W - self.LEFT_W - self.RIGHT_W
         orb_area_h = self.H - HDR_H - CONTROL_H - FOOTER_H - 24
         self.FCX = self.LEFT_W + center_w // 2
@@ -893,7 +896,7 @@ class EdithUI:
         )
         self._settings_tab_settings = tk.Canvas(
             self._settings_panel,
-            width=120,
+            width=90,
             height=28,
             bg="#041111",
             highlightthickness=0,
@@ -903,7 +906,7 @@ class EdithUI:
         
         self._settings_tab_memory = tk.Canvas(
             self._settings_panel,
-            width=120,
+            width=90,
             height=28,
             bg="#041111",
             highlightthickness=0,
@@ -911,9 +914,19 @@ class EdithUI:
         )
         self._settings_tab_memory.bind("<Button-1>", lambda e: self._set_settings_tab("memory"))
 
+        self._settings_tab_calls = tk.Canvas(
+            self._settings_panel,
+            width=94,
+            height=28,
+            bg="#041111",
+            highlightthickness=0,
+            cursor="hand2",
+        )
+        self._settings_tab_calls.bind("<Button-1>", lambda e: self._set_settings_tab("calls"))
+
         self._settings_tab_debug = tk.Canvas(
             self._settings_panel,
-            width=120,
+            width=90,
             height=28,
             bg="#041111",
             highlightthickness=0,
@@ -924,6 +937,7 @@ class EdithUI:
         self._settings_body = tk.Frame(self._settings_panel, bg="#041111")
         self._debug_body = tk.Frame(self._settings_panel, bg="#041111")
         self._build_memory_controls()
+        self._build_calls_controls()
         self._settings_sfx_label = tk.Label(
             self._settings_body,
             text="SFX",
@@ -999,6 +1013,43 @@ class EdithUI:
         self._header_settings_canvas.bind("<Button-1>", lambda e: self.open_settings_dialog())
         _draw_btn(False)
 
+    def _build_header_mobile_btn(self):
+        """Üst barda (Header) 7/24 Mobil Web Asistan butonu oluşturur."""
+        BW, BH = 126, 36
+        self._header_mobile_canvas = tk.Canvas(
+            self.root,
+            width=BW,
+            height=BH,
+            bg="#02080a",
+            highlightthickness=0,
+            cursor="hand2",
+        )
+
+        def _draw_btn(hover=False):
+            c = self._header_mobile_canvas
+            c.delete("all")
+            fill = "#06222b" if hover else "#021217"
+            outline = C_BLUE if hover else "#005577"
+            c.create_rectangle(0, 0, BW, BH, fill=fill, outline=outline, width=1)
+            bl = 7
+            for bx, by, sx, sy in [(0, 0, 1, 1), (BW, 0, -1, 1), (0, BH, 1, -1), (BW, BH, -1, -1)]:
+                c.create_line(bx, by, bx + sx * bl, by, fill=C_BLUE if hover else "#005577", width=2)
+                c.create_line(bx, by, bx, by + sy * bl, fill=C_BLUE if hover else "#005577", width=2)
+            c.create_text(BW // 2, BH // 2, text="🌐 MOBİL WEB", fill=C_BLUE if hover else "#a0ddee", font=font_body_bold(10))
+
+        self._header_mobile_canvas.bind("<Enter>", lambda e: _draw_btn(True))
+        self._header_mobile_canvas.bind("<Leave>", lambda e: _draw_btn(False))
+        self._header_mobile_canvas.bind("<Button-1>", lambda e: self.open_mobile_web_assistant())
+        _draw_btn(False)
+
+    def open_mobile_web_assistant(self):
+        """7/24 Mobil Web Asistanı varsayılan tarayıcıda açar."""
+        import webbrowser
+        from app_config import get_app_config_value
+        url = get_app_config_value("server_sync.server_url", "https://training-opportunity-experienced-million.trycloudflare.com")
+        webbrowser.open(url)
+        self.write_log(f"SYS: Mobil Web Asistanı tarayıcıda açıldı: {url}")
+
     def open_settings_dialog(self):
         """Gelişmiş Ayarlar Penceresini (SettingsDialog) açar."""
         try:
@@ -1039,6 +1090,7 @@ class EdithUI:
         for key, canvas, label in (
             ("settings", self._settings_tab_settings, "SETTINGS"),
             ("memory", self._settings_tab_memory, "MEMORY"),
+            ("calls", self._settings_tab_calls, "TELEFON"),
             ("debug", self._settings_tab_debug, "DEBUG"),
         ):
             if not canvas:
@@ -1055,14 +1107,16 @@ class EdithUI:
             for bx, by, sx, sy in [(0, 0, 1, 1), (bw, 0, -1, 1), (0, bh, 1, -1), (bw, bh, -1, -1)]:
                 canvas.create_line(bx, by, bx + sx * bl, by, fill=outline, width=1)
                 canvas.create_line(bx, by, bx, by + sy * bl, fill=outline, width=1)
-            canvas.create_text(bw // 2, bh // 2, text=label, fill=text_col, font=font_body_bold(9))
+            canvas.create_text(bw // 2, bh // 2, text=label, fill=text_col, font=font_body_bold(8))
 
     def _set_settings_tab(self, tab: str):
-        if tab in ("settings", "memory", "debug"):
+        if tab in ("settings", "memory", "calls", "debug"):
             self._settings_tab = tab
         else:
             self._settings_tab = "settings"
         self._draw_settings_tabs()
+        if tab == "calls":
+            self._refresh_calls_list()
         self._place_layout_widgets()
 
     def _layout_settings_controls(self):
@@ -1217,6 +1271,134 @@ class EdithUI:
         self._mem_key_entry.delete(0, tk.END)
         self._mem_val_entry.delete(0, tk.END)
         self.write_log("SYS: Hafıza kaydı silindi.")
+
+    def _build_calls_controls(self):
+        self._calls_body = tk.Frame(self._settings_panel, bg="#041111")
+        inner_w = self._settings_geometry["panel_w"] - 24
+
+        tk.Label(
+            self._calls_body,
+            text="◈ TELEFON & ÇAĞRI SEKRETERİ",
+            fg=C_PRI,
+            bg="#041111",
+            font=font_body_bold(9),
+            anchor="w",
+        ).place(x=0, y=0, width=inner_w)
+
+        # Termux bağlantı rehberi
+        from actions.computer_settings import get_local_ip
+        try:
+            local_ip = get_local_ip()
+        except Exception:
+            local_ip = "192.168.1.X"
+        termux_cmd = f"Termux: python edith_phone.py http://{local_ip}:8000"
+        tk.Label(
+            self._calls_body,
+            text=termux_cmd,
+            fg=C_MID,
+            bg="#041111",
+            font=font_body(8),
+            anchor="w",
+        ).place(x=0, y=20, width=inner_w)
+
+        list_frame = tk.Frame(self._calls_body, bg="#041111")
+        list_frame.place(x=0, y=42, width=inner_w, height=130)
+
+        self._calls_listbox = tk.Listbox(
+            list_frame,
+            fg=C_TEXT,
+            bg="#020a0a",
+            selectbackground=C_PRI,
+            selectforeground=C_BG,
+            font=font_body(8),
+            borderwidth=0,
+            highlightthickness=1,
+            highlightbackground=C_DIM,
+            highlightcolor=C_PRI,
+        )
+        self._calls_listbox.place(x=0, y=0, width=inner_w - 18, height=130)
+
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical", command=self._calls_listbox.yview)
+        scrollbar.place(x=inner_w - 16, y=0, width=16, height=130)
+        self._calls_listbox.config(yscrollcommand=scrollbar.set)
+
+        tk.Button(
+            self._calls_body,
+            text="ÇAĞRILARI YENİLE ↻",
+            command=self._refresh_calls_list,
+            fg=C_BG, bg=C_PRI,
+            activeforeground=C_BG, activebackground=C_BLUE,
+            font=font_body_bold(8),
+            borderwidth=0, cursor="hand2",
+        ).place(x=0, y=178, width=130, height=26)
+
+        mode_y = 212
+        tk.Label(
+            self._calls_body,
+            text="◈ ÇALIŞMA MODU (TRIPLE-MODE):",
+            fg=C_GOLD,
+            bg="#041111",
+            font=font_body_bold(8),
+            anchor="w",
+        ).place(x=0, y=mode_y, width=inner_w)
+
+        btn_w = (inner_w - 18) // 4
+        self._mode_buttons = {}
+        for idx, m_key in enumerate(["hybrid", "server", "local", "offline"]):
+            m_label = {"hybrid": "HİBRİT", "server": "SERVER", "local": "LOCAL", "offline": "OFFLINE"}[m_key]
+            b = tk.Button(
+                self._calls_body,
+                text=m_label,
+                command=lambda k=m_key: self._set_operating_mode_from_ui(k),
+                fg=C_TEXT, bg="#0a2020",
+                activeforeground=C_BG, activebackground=C_PRI,
+                font=font_body_bold(8),
+                borderwidth=1, cursor="hand2",
+            )
+            b.place(x=idx * (btn_w + 6), y=mode_y + 20, width=btn_w, height=26)
+            self._mode_buttons[m_key] = b
+
+        self._refresh_calls_list()
+
+    def _refresh_calls_list(self):
+        if not hasattr(self, "_calls_listbox") or not self._calls_listbox:
+            return
+        self._calls_listbox.delete(0, tk.END)
+        try:
+            from dashboard.server import load_call_logs
+            logs = load_call_logs()
+            if not logs:
+                self._calls_listbox.insert(tk.END, " Henüz kayıtlı arama bulunmuyor.")
+            else:
+                for c in logs[:15]:
+                    name = c.get("caller_name", "Bilinmeyen")
+                    num = c.get("caller_number", "")
+                    tm = c.get("time", "")
+                    summ = c.get("summary", "")
+                    self._calls_listbox.insert(tk.END, f"📞 {tm} | {name} ({num})")
+                    if summ:
+                        self._calls_listbox.insert(tk.END, f"   ↳ {summ[:45]}")
+        except Exception as e:
+            self._calls_listbox.insert(tk.END, f"Hata: {e}")
+
+    def _set_operating_mode_from_ui(self, mode: str):
+        try:
+            from core.mode_manager import get_mode_manager
+            mgr = get_mode_manager()
+            mgr.set_mode(mode)
+            eff = mgr.get_effective_mode().upper()
+            self.set_operating_mode(f"MOD: {eff}")
+            self.write_log(f"SYS: Çalışma modu değiştirildi -> {mode.upper()} ({eff})")
+            if hasattr(self, "_mode_buttons"):
+                for k, btn in self._mode_buttons.items():
+                    if k == mode:
+                        btn.configure(bg=C_PRI, fg=C_BG)
+                    else:
+                        btn.configure(bg="#0a2020", fg=C_TEXT)
+            if hasattr(self, "_on_mode_change_callback") and self._on_mode_change_callback:
+                self._on_mode_change_callback(mode)
+        except Exception as e:
+            self.write_log(f"SYS: Mod değiştirme hatası: {e}")
 
     def _refresh_settings_status(self):
         if not hasattr(self, "_settings_status_primary"):
@@ -1639,20 +1821,28 @@ class EdithUI:
                 pass
 
             if hasattr(self, "_header_settings_canvas"):
-                hdr_btn_x = max(10, self.W - 130)
+                hdr_btn_x = max(10, self.W - 120)
                 self._header_settings_canvas.place(x=hdr_btn_x, y=8, width=110, height=30)
                 tk.Misc.lift(self._header_settings_canvas)
+            if hasattr(self, "_header_mobile_canvas"):
+                mob_btn_x = max(5, self.W - 240)
+                self._header_mobile_canvas.place(x=mob_btn_x, y=8, width=110, height=30)
+                tk.Misc.lift(self._header_mobile_canvas)
 
             inp_w = self.W - pad * 2 - 76 - 8
             self._input_entry.place(x=pad, y=self.H - pad - INPUT_H, width=max(140, inp_w), height=INPUT_H)
             self._send_btn.place(x=pad + max(140, inp_w) + 8, y=self.H - pad - INPUT_H, width=76, height=INPUT_H)
             return
 
-        # Üst barda (Header) sağ tarafa Ayarlar Butonunu yerleştir
+        # Üst barda (Header) sağ tarafa Ayarlar & Mobil Web Butonlarını yerleştir
         if hasattr(self, "_header_settings_canvas"):
-            hdr_btn_x = max(240, self.W - 280)
+            hdr_btn_x = max(240, self.W - 145)
             self._header_settings_canvas.place(x=hdr_btn_x, y=18, width=120, height=36)
             tk.Misc.lift(self._header_settings_canvas)
+        if hasattr(self, "_header_mobile_canvas"):
+            mob_btn_x = max(110, self.W - 280)
+            self._header_mobile_canvas.place(x=mob_btn_x, y=18, width=126, height=36)
+            tk.Misc.lift(self._header_mobile_canvas)
 
         self.log_frame.place(x=self.CHAT_X, y=self.CHAT_Y, width=self.CHAT_W, height=self.CHAT_H)
         gap = 12
@@ -1676,24 +1866,34 @@ class EdithUI:
             self._settings_panel.place(x=panel_x, y=panel_y, width=panel_w, height=panel_h)
             self._settings_panel.lift()
             self._settings_title.place(x=14, y=12)
-            self._settings_tab_settings.place(x=14, y=40)
-            self._settings_tab_memory.place(x=138, y=40)  # New memory tab placement
-            self._settings_tab_debug.place(x=254, y=40)
+            self._settings_tab_settings.place(x=14, y=40, width=90, height=28)
+            self._settings_tab_memory.place(x=108, y=40, width=90, height=28)
+            self._settings_tab_calls.place(x=202, y=40, width=96, height=28)
+            self._settings_tab_debug.place(x=302, y=40, width=90, height=28)
             # Show the appropriate body based on selected tab
             if self._settings_tab == "debug":
                 self._settings_body.place_forget()
                 self._memory_body.place_forget()
+                self._calls_body.place_forget()
                 self._debug_body.place(x=12, y=76, width=panel_w - 24, height=panel_h - 88)
                 self._debug_text.place(x=0, y=0, width=panel_w - 24, height=panel_h - 88)
                 self._debug_body.lift()
             elif self._settings_tab == "memory":
                 self._settings_body.place_forget()
                 self._debug_body.place_forget()
+                self._calls_body.place_forget()
                 self._memory_body.place(x=12, y=76, width=panel_w - 24, height=panel_h - 88)
                 self._memory_body.lift()
+            elif self._settings_tab == "calls":
+                self._settings_body.place_forget()
+                self._debug_body.place_forget()
+                self._memory_body.place_forget()
+                self._calls_body.place(x=12, y=76, width=panel_w - 24, height=panel_h - 88)
+                self._calls_body.lift()
             else:  # settings tab
                 self._debug_body.place_forget()
                 self._memory_body.place_forget()
+                self._calls_body.place_forget()
                 self._settings_body.place(x=12, y=76, width=panel_w - 24, height=panel_h - 88)
                 self._settings_body.lift()
         else:
@@ -1701,10 +1901,12 @@ class EdithUI:
             self._settings_title.place_forget()
             self._settings_tab_settings.place_forget()
             self._settings_tab_memory.place_forget()
+            self._settings_tab_calls.place_forget()
             self._settings_tab_debug.place_forget()
             self._settings_body.place_forget()
             self._debug_body.place_forget()
             self._memory_body.place_forget()
+            self._calls_body.place_forget()
 
         inp_w = self.CHAT_W - 84
         self._input_entry.place(x=self.CHAT_X, y=self.CHAT_INPUT_Y, width=inp_w, height=INPUT_H)
@@ -1731,15 +1933,22 @@ class EdithUI:
 
     # ── State & callbacks ────────────────────────────────────────────────────
     def set_state(self, state: str):
-        previous = getattr(self, "_edith_state", "")
-        self._edith_state = state
-        self.speaking = (state == "SPEAKING")
-        if state == "THINKING":
-            self.sound.start_thinking()
-        elif previous == "THINKING":
-            self.sound.stop_thinking()
-        if state == "ERROR" and previous != "ERROR":
-            self.sound.play_error()
+        def _do():
+            previous = getattr(self, "_edith_state", "")
+            self._edith_state = state
+            self.speaking = (state == "SPEAKING")
+            if state == "THINKING":
+                self.sound.start_thinking()
+            elif previous == "THINKING":
+                self.sound.stop_thinking()
+            if state == "ERROR" and previous != "ERROR":
+                self.sound.play_error()
+        self.root.after(0, _do)
+
+    def _recover_from_error(self):
+        """Hata durumundan sonra arayüzü güvenli ve otomatik olarak dinleme moduna döndürür."""
+        if getattr(self, "_edith_state", "") == "ERROR" and not getattr(self, "speaking", False):
+            self.set_state("LISTENING")
 
     def set_user_speaking(self, value: bool):
         self.mark_user_activity(value)
@@ -1795,24 +2004,77 @@ class EdithUI:
             return "ERROR"
         return "ONLINE"
 
+    def _on_window_configure(self, event):
+        """Pencere boyutu veya durumu değiştikçe arayüz ve girdi elemanlarını dinamik yeniden boyutlandırır."""
+        if event.widget != self.root:
+            return
+        w = int(event.width)
+        h = int(event.height)
+        if w < 120 or h < 120:
+            return
+        if abs(w - self.W) > 2 or abs(h - self.H) > 2:
+            if getattr(self, "_compact_mode", False):
+                self.W = w
+                self.H = h
+                if hasattr(self, "bg"):
+                    self.bg.configure(width=self.W, height=self.H)
+                self._place_layout_widgets()
+            else:
+                self._resize_surface(w, h)
+
+    def set_active_model(self, model_name: str):
+        """Aktif veya son çağrılan LLM model adını telemetri paneline işler."""
+        if not model_name:
+            return
+        clean_name = str(model_name).strip()
+        def _do():
+            self._active_model_name = clean_name
+        self.root.after(0, _do)
+
+    def set_operating_mode(self, mode_text: str):
+        """HUD üst çubuğunda ve telemetride görünen aktif çalışma modunu günceller."""
+        if not mode_text:
+            return
+        clean_text = str(mode_text).strip()
+        def _do():
+            self._operating_mode = clean_text
+        self.root.after(0, _do)
+
+    def record_api_call(self, name: str, status: str = "OK", detail: str = ""):
+        """Son API veya araç çağrısını telemetri paneline iş parçacığı güvenli şekilde ekler."""
+        t_str = time.strftime("%H:%M:%S")
+        def _do():
+            self._api_calls.appendleft({
+                "time": t_str,
+                "name": str(name or "API"),
+                "status": str(status or "OK"),
+                "detail": str(detail or ""),
+            })
+        self.root.after(0, _do)
+
     # ── Log ──────────────────────────────────────────────────────────────────
     def write_log(self, text: str):
-        self.typing_queue.append(text)
-        tl = text.lower()
-        if tl.startswith("siz:") or tl.startswith("you:"):
-            self.mark_user_activity(True)
-            self.set_state("THINKING")
-        elif tl.startswith("err:") or "error" in tl:
-            self._error_hold_until = time.time() + 8.0
-            self.set_state("ERROR")
-            self.write_debug(text, level="ERROR")
-        if not self.is_typing:
-            self._start_typing()
+        def _do():
+            self.typing_queue.append(text)
+            tl = text.lower()
+            if tl.startswith("siz:") or tl.startswith("you:"):
+                self.mark_user_activity(True)
+                self.set_state("THINKING")
+            elif tl.startswith("err:") or tl.startswith("hata:"):
+                self._error_hold_until = time.time() + 1.5
+                self.set_state("ERROR")
+                self.write_debug(text, level="ERROR")
+                self.root.after(1600, self._recover_from_error)
+            if not self.is_typing:
+                self._start_typing()
+        self.root.after(0, _do)
 
     def _start_typing(self):
         if not self.typing_queue:
             self.is_typing = False
             if self._edith_state == "ERROR" and time.time() < self._error_hold_until:
+                rem_ms = max(50, int((self._error_hold_until - time.time()) * 1000))
+                self.root.after(rem_ms, self._recover_from_error)
                 return
             if not self.speaking:
                 self.set_state("LISTENING")
@@ -1822,7 +2084,7 @@ class EdithUI:
         tl   = text.lower()
         if   tl.startswith("siz:") or tl.startswith("you:"):   tag = "you"
         elif tl.startswith("edith:") or tl.startswith("ai:"): tag = "ai"
-        elif tl.startswith("err:") or "error" in tl:           tag = "err"
+        elif tl.startswith("err:") or tl.startswith("hata:"):  tag = "err"
         else:                                                    tag = "sys"
         self.log_text.configure(state="normal")
         if not self._typewriter_enabled:
@@ -1861,6 +2123,22 @@ class EdithUI:
             self._last_net_t = now
             self._cpu_hist.pop(0)
             self._cpu_hist.append(self._stats['cpu'])
+
+            # Termux Telefon Telemetrisi
+            try:
+                from dashboard.server import _PHONE_STATUS
+                p_bat = _PHONE_STATUS.get("battery")
+                p_seen = _PHONE_STATUS.get("last_seen", 0.0)
+                if p_bat is not None and (now - p_seen < 300):
+                    self._stats['phone_battery'] = float(p_bat)
+                    self._stats['phone_status'] = _PHONE_STATUS.get("status", "")
+                    self._stats['phone_connected'] = True
+                    self._stats['phone_was_seen'] = True
+                else:
+                    self._stats['phone_connected'] = False
+                    self._stats['phone_was_seen'] = (p_seen > 0.0)
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -1975,23 +2253,10 @@ class EdithUI:
 
 
     def _kick_brief_refresh(self):
-        if self._brief_refresh_busy:
-            return
-        self._brief_refresh_busy = True
-        threading.Thread(target=self._refresh_brief_cards, daemon=True).start()
+        pass
 
     def _refresh_brief_cards(self):
-        try:
-            weather = get_weather_summary("Istanbul")
-            self._weather_card = self._parse_weather_card(weather)
-        except Exception:
-            self._weather_card = {
-                "city": "Istanbul",
-                "primary": "--",
-                "details": ["Hava durumu alınamadı."],
-            }
-        finally:
-            self._brief_refresh_busy = False
+        self._brief_refresh_busy = False
 
     def _bar(self, c, x, y, w, h, pct, color):
         c.create_rectangle(x, y, x+w, y+h, fill="#061212", outline=C_DIM, width=1)
@@ -2069,9 +2334,8 @@ class EdithUI:
 
         cards = [
             ("time", 0.22, "TIME", C_GOLD),
-            ("weather", 0.20, "WEATHER · ISTANBUL", C_BLUE),
+            ("api_telemetry", 0.28, "API & TOOL CALLS", C_BLUE),
             ("system", 0.28, "SYSTEM STATUS", C_PRI),
-
         ]
         any_focus_active = bool(self._panel_focus) and (self._panel_focus_until > time.time())
         weights = []
@@ -2113,16 +2377,39 @@ class EdithUI:
                 c.create_text(section_x+section_pad, current_y+138, text=time.strftime("%A").upper(),
                               fill=muted_text, font=font_body(10), anchor="w")
 
-            elif section == "weather":
-                c.create_text(section_x+section_pad, current_y+58, text=self._weather_card["primary"],
-                              fill=muted_primary, font=font_display(30 if focus_boost > 0.08 else 28), anchor="w")
-                c.create_text(section_x+section_pad, current_y+84, text=self._weather_card["city"].upper(),
-                              fill=muted_label, font=font_body_bold(10), anchor="w")
-                wy = current_y + 108
-                for line in self._weather_card["details"][:3]:
-                    c.create_text(section_x+section_pad, wy, text=f"• {line}", fill=muted_text,
-                                  font=font_body(10), anchor="w")
-                    wy += 17
+            elif section == "api_telemetry":
+                call_count = len(self._api_calls)
+                status_text = f"{call_count} İŞLEM" if call_count > 0 else "HAZIR"
+                c.create_text(section_x+section_pad, current_y+48, text=status_text,
+                              fill=muted_primary if call_count > 0 else muted_label,
+                              font=font_display(18 if focus_boost > 0.08 else 16), anchor="w")
+
+                # Aktif veya son çağrılan LLM model adı
+                active_model = getattr(self, "_active_model_name", "LLM HAZIR")
+                model_disp = f"MODEL: {active_model}"
+                if len(model_disp) > 28:
+                    model_disp = model_disp[:26] + ".."
+                c.create_text(section_x+section_pad, current_y+68, text=model_disp.upper(),
+                              fill=muted_gold, font=font_body_bold(9), anchor="w")
+
+                c.create_text(section_x+section_pad, current_y+86, text="SON API & ARAÇ TELEMETRİSİ",
+                              fill=muted_label, font=font_body(8), anchor="w")
+                wy = current_y + 104
+                if not self._api_calls:
+                    c.create_text(section_x+section_pad, wy, text="• Beklemede: Çağrı bekleniyor",
+                                  fill=muted_label, font=font_body(9), anchor="w")
+                    c.create_text(section_x+section_pad, wy+16, text="• 35 Araç & LLM aktif",
+                                  fill=muted_text, font=font_body(9), anchor="w")
+                else:
+                    for call in list(self._api_calls)[:3]:
+                        col = C_GREEN if call["status"] == "OK" else (C_ORG2 if call["status"] == "RUN" else C_RED)
+                        call_name = call["name"][:13]
+                        call_line = f"• {call['time']} | {call_name}"
+                        c.create_text(section_x+section_pad, wy, text=call_line, fill=muted_text,
+                                      font=font_body(9), anchor="w")
+                        c.create_text(section_x+section_pw-section_pad, wy, text=call["status"],
+                                      fill=col if not dimmed else muted_primary, font=font_body_bold(9), anchor="e")
+                        wy += 16
 
             elif section == "system":
                 cy = current_y + 44
@@ -2150,8 +2437,19 @@ class EdithUI:
                 c.create_text(section_x+section_pad, cy+10, text=f"▲ {up_s}", fill=muted_warn, font=font_body(10), anchor="w")
                 c.create_text(section_x+section_pw-section_pad, cy+10, text=f"▼ {down_s}", fill=muted_green, font=font_body(10), anchor="e")
 
-           
-                
+                phone_conn = self._stats.get("phone_connected", False)
+                phone_seen = self._stats.get("phone_was_seen", False)
+                if phone_conn:
+                    p_val = self._stats.get("phone_battery", 0.0)
+                    p_st = "⚡" if "charging" in str(self._stats.get("phone_status", "")).lower() else "🔋"
+                    c.create_text(section_x+section_pad, cy+26, text=f"TEL PIL {p_st}", fill=muted_label, font=font_body(10), anchor="w")
+                    c.create_text(section_x+section_pw-section_pad, cy+26, text=f"%{p_val:.0f}", fill=muted_green, font=font_body_bold(10), anchor="e")
+                elif phone_seen:
+                    c.create_text(section_x+section_pad, cy+26, text="TEL: KAPALI / ÇEVRİMDIŞI", fill=muted_warn, font=font_body(9), anchor="w")
+                    c.create_text(section_x+section_pw-section_pad, cy+26, text="BULUTTA", fill=muted_cyan, font=font_body_bold(9), anchor="e")
+                else:
+                    c.create_text(section_x+section_pad, cy+26, text="TEL: BEKLEMEDE", fill=muted_label, font=font_body(9), anchor="w")
+
 
             current_y += ph + gap
 
@@ -2422,8 +2720,9 @@ class EdithUI:
         c.create_text(W//2, 30, text="EDITH",
                       fill=C_PRI, font=font_display(20))
 
-        # Sol: model badge
-        c.create_text(22, 30, text=MODEL_BADGE,
+        # Sol: model badge ve çalışma modu
+        mode_str = getattr(self, "_operating_mode", "MOD: HİBRİT")
+        c.create_text(22, 30, text=f"{MODEL_BADGE} | {mode_str}",
                       fill=C_DIM, font=font_body(10), anchor="w")
 
         # Sağ: durum indikatörü

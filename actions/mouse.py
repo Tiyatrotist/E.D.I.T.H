@@ -16,8 +16,8 @@ except ImportError:
     HAS_PYPERCLIP = False
 
 
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
+user32 = getattr(ctypes, "windll", None).user32 if hasattr(ctypes, "windll") else None
+kernel32 = getattr(ctypes, "windll", None).kernel32 if hasattr(ctypes, "windll") else None
 
 VK_CONTROL = 0x11
 VK_SHIFT = 0x10
@@ -135,6 +135,36 @@ def type_text(text: str) -> str:
         return "Yazı yapıştırıldı."
     except Exception as exc:
         return f"Yazı gönderilemedi: {exc}"
+
+
+write_text = type_text
+
+
+def press_enter() -> None:
+    """Enter (Return) tuşuna basar."""
+    if user32:
+        user32.keybd_event(0x0D, 0, 0, 0)
+        time.sleep(0.05)
+        user32.keybd_event(0x0D, 0, 2, 0)
+
+
+def press_key(key_name: str) -> None:
+    """Belirtilen sanal tuşa basar (return/enter, tab, esc vb.)."""
+    if not user32:
+        return
+    k = (key_name or "").lower().strip()
+    vk_map = {
+        "return": 0x0D,
+        "enter":  0x0D,
+        "tab":    0x09,
+        "esc":    0x1B,
+        "escape": 0x1B,
+        "space":  0x20,
+    }
+    vk = vk_map.get(k, 0x0D)
+    user32.keybd_event(vk, 0, 0, 0)
+    time.sleep(0.05)
+    user32.keybd_event(vk, 0, 2, 0)
 
 
 def mouse_control(

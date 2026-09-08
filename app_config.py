@@ -121,6 +121,7 @@ DEFAULT_PHONE_COMPANION = {
     "enabled": False,
     "auto_answer": False,
     "auto_answer_after_rings": 3,
+    "auto_answer_delay_seconds": 14,  # Telefon tam kapanmadan önce açması için çalma bekleme süresi (sn)
     "auto_answer_contacts": [],
     "busy_message": "Şu anda müsait değilim, birazdan arayacağım.",
     "greeting": "Merhaba, ben EDITH, yapay zeka asistanıyım. Size nasıl yardımcı olabilirim?",
@@ -150,12 +151,34 @@ DEFAULT_DISCORD = {
     "tts_voice": "tr-TR-AhmetNeural",
 }
 
+DEFAULT_SERVER_SYNC = {
+    "enabled": True,
+    "server_url": "http://152.70.13.195:8080",
+    "sync_interval_seconds": 30,
+    "notify_new_calls_voice": True,
+    "sync_chat_history": True,
+}
+
+DEFAULT_SIP = {
+    "enabled": False,
+    "server": "sip.netgsm.com.tr",
+    "port": 5060,
+    "username": "",
+    "password": "",
+    "my_ip": "",
+    "auto_answer": True,
+    "greeting": "Merhaba, ben Buğra'nın asistanı EDITH. Size nasıl yardımcı olabilirim?",
+}
+
 DEFAULT_CONFIG = {
+    "app_role": "client",  # "client" (Windows PC) veya "server" (Oracle Cloud VPS)
     "active_provider": "nim",
     "fallback_chain": ["nim", "mistral", "cohere", "gemini", "groq", "openrouter", "ollama"],
     "providers": DEFAULT_PROVIDERS,
     "phone_companion": DEFAULT_PHONE_COMPANION,
+    "sip": DEFAULT_SIP,
     "discord": DEFAULT_DISCORD,
+    "server_sync": DEFAULT_SERVER_SYNC,
     # Geriye dönük uyumluluk ve genel ayarlar:
     "gemini_api_key": "",
     "voice": "Charon",
@@ -298,6 +321,11 @@ def save_app_config(updates: dict) -> dict:
 def get_app_config_value(key: str, default=None):
     """Config'ten belirli bir değeri çeker."""
     return load_app_config().get(key, default)
+
+
+def set_app_config_value(key: str, value) -> dict:
+    """Config'e belirli bir anahtarı ve değeri yazar ve kaydeder."""
+    return save_app_config({key: value})
 
 
 def get_provider_config(provider_name: str) -> dict:

@@ -28,8 +28,10 @@ from discord_bot.command_router import handle_system_command
 from discord_bot.embeds import (
     help_embed,
     mode_embed,
+    phone_call_embed,
     search_embed,
     status_embed,
+    triple_mode_embed,
     voice_embed,
 )
 from discord_bot.personality import calculate_typing_delay
@@ -224,6 +226,19 @@ class EdithDiscordBot:
                     await message.channel.send(embed=emb)
                     return
 
+                if cmd in ("mode", "mod"):
+                    try:
+                        from core.mode_manager import get_mode_manager
+                        mgr = get_mode_manager()
+                        target = (args or "").strip().lower()
+                        if target in ("server", "local", "offline", "hybrid"):
+                            mgr.set_mode(target)
+                        emb = triple_mode_embed(mgr.get_mode(), mgr.get_effective_mode(), bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    except Exception as ex:
+                        await message.channel.send(f"⚠️ Mod bilgisi alınamadı: {ex}")
+                    return
+
                 if cmd == "search":
                     if args:
                         rep, _ = handle_system_command("search", args)
@@ -298,6 +313,68 @@ def start_discord_bot_background(token: str = "") -> None:
         print("[DiscordBot] ❌ discord.py kurulu değil.")
         return
 
+
+_global_bot_instance: Optional[EdithDiscordBot] = None
+
+
+def get_discord_bot() -> Optional[EdithDiscordBot]:
+    global _global_bot_instance
+    return _global_bot_instance
+
+
+def send_discord_alert(title: str, description: str, caller_name: str = "") -> None:
+    """Sunucudan Discord kanalına anlık zengin bildirim gönderir (örn: cevaplanan telefon araması)."""
+    global _global_bot_instance
+    if not _global_bot_instance or not _global_bot_instance.bot.is_ready():
+        return
+
+    async def _send():
+        try:
+            bot = _global_bot_instance.bot
+            cfg = load_app_config().get("discord", {})
+            allowed_channels = cfg.get("allowed_channels", [])
+
+            channel = None
+            if allowed_channels:
+                channel = bot.get_channel(int(allowed_channels[0]))
+
+            if not channel:
+                # Botun bulunduğu ilk metin kanalını bul
+                for guild in bot.guilds:
+                    for ch in guild.text_channels:
+                        if ch.permissions_for(guild.me).send_messages:
+                            channel = ch
+                            break
+                    if channel:
+                        break
+
+            if channel:
+                embed = phone_call_embed(
+                    caller_name=caller_name or "Bilinmeyen Numara",
+                    caller_number="",
+                    summary=description,
+                    is_active=("çalıyor" in description.lower() or "gelen" in title.lower()),
+                    bot_user=bot.user,
+                )
+                await channel.send(embed=embed)
+                print(f"[DiscordBot] 📢 Discord bildirimi gönderildi -> #{channel.name}")
+        except Exception as e:
+            print(f"[DiscordBot] ⚠️ Bildirim gönderme hatası: {e}")
+
+    try:
+        loop = _global_bot_instance.bot.loop
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(_send(), loop)
+    except Exception as e:
+        print(f"[DiscordBot] ⚠️ Bildirim zamanlama hatası: {e}")
+
+
+def start_discord_bot_background(token: str = "") -> None:
+    global _global_bot_instance
+    if not HAS_DISCORD:
+        print("[DiscordBot] ❌ discord.py kurulu değil.")
+        return
+
     cfg = load_app_config().get("discord", {})
     bot_token = token or cfg.get("bot_token", "")
 
@@ -306,15 +383,16 @@ def start_discord_bot_background(token: str = "") -> None:
         return
 
     def _run():
+        global _global_bot_instance
         print("[DiscordBot] 🚀 Discord Bot başlatılıyor...")
         try:
-            bot_instance = EdithDiscordBot(bot_token, privileged_intents=True)
-            bot_instance.run()
+            _global_bot_instance = EdithDiscordBot(bot_token, privileged_intents=True)
+            _global_bot_instance.run()
         except discord.errors.PrivilegedIntentsRequired:
             print("[DiscordBot] ⚠️ Message Content Intent henüz açık değil, temel modda bağlanılıyor...")
             try:
-                bot_instance = EdithDiscordBot(bot_token, privileged_intents=False)
-                bot_instance.run()
+                _global_bot_instance = EdithDiscordBot(bot_token, privileged_intents=False)
+                _global_bot_instance.run()
             except Exception as ex:
                 print(f"[DiscordBot] ❌ Bot temel modda da başlatılamadı: {ex}")
         except Exception as e:
@@ -322,3 +400,4 @@ def start_discord_bot_background(token: str = "") -> None:
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
+

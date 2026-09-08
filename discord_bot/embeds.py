@@ -181,3 +181,41 @@ def help_embed(bot_user=None) -> discord.Embed:
     )
 
     return embed
+
+
+def phone_call_embed(
+    caller_name: str,
+    caller_number: str = "",
+    summary: str = "",
+    is_active: bool = False,
+    bot_user=None,
+) -> discord.Embed:
+    """Termux telefon çağrısı bildirim kartı."""
+    title = f"📞 GELEN ÇAĞRI: {caller_name}" if is_active else f"📲 ÇAĞRI TAMAMLANDI: {caller_name}"
+    color = COLOR_WARN if is_active else COLOR_SUCCESS
+    desc = f"**Numara:** `{caller_number or 'Gizli/Bilinmeyen'}`\n"
+    if summary:
+        desc += f"**EDITH Sekreter Notu:** {summary}"
+    else:
+        desc += "**Durum:** 14 saniye kuralı ile otomatik sekreter karşılama devrede."
+    embed = create_base_embed(title=title, description=desc, color=color, bot_user=bot_user)
+    return embed
+
+
+def triple_mode_embed(mode: str, effective_mode: str = "", bot_user=None) -> discord.Embed:
+    """Triple-Mode (Server / Local / Offline) durum kartı."""
+    mode_titles = {
+        "server": "🌐 SERVER (Bulut / Uzak Sunucu) Modu",
+        "local": "💻 LOCAL (Yerel Model / Ollama) Modu",
+        "offline": "🔌 OFFLINE (Tamamen İnternetsiz) Mod",
+        "hybrid": "⚡ HİBRİT (Otomatik Kesintisiz Geçiş) Modu",
+    }
+    eff = effective_mode or mode
+    title = mode_titles.get(mode.lower(), f"⚙️ Çalışma Modu: {mode.upper()}")
+    desc = (
+        f"**Seçili Çalışma Modu:** `{mode.upper()}`\n"
+        f"**Yürütülen Efektif Mod:** `{eff.upper()}`\n"
+        f"**Yedekleme Zinciri:** Server ⇄ Local ⇄ Offline kesintisiz geçiş aktif."
+    )
+    embed = create_base_embed(title=title, description=desc, color=COLOR_CYAN, bot_user=bot_user)
+    return embed

@@ -18,13 +18,15 @@
 
 ## 🌟 Key Highlights & Capabilities
 
-- 🏗️ **Multi-Provider LLM Pool:** Seamlessly switch between **Ollama (100% offline)**, **Google Gemini**, **OpenAI (GPT-4o)**, **Anthropic (Claude 3.5)**, **Groq**, **DeepSeek**, **OpenRouter**, and **LM Studio**. Features automated fallback chains.
-- 🧩 **Drop-In Plugin System:** Add new tools simply by placing `.py` files inside the `plugins/` directory. Zero code modifications required.
-- 📱 **Web Control Dashboard:** Live hardware telemetry, remote chat, and device control from PC or mobile at `http://localhost:8080`.
-- 📞 **Android Companion Phone Bridge:** Answers incoming phone calls on your Android phone and converses with callers like a real secretary via WebSocket (`ws://0.0.0.0:8765`).
-- 🤖 **Human-Like Discord Bot:** Chat naturally without robotic AI clichés, send attachments/images for vision inspection, join voice channels, and manage your PC remotely via Discord.
-- 👁️ **Multimodal Vision:** Real-time active window analysis, OCR, image resizing/converting, and screenshot debugging.
-- ⚡ **25+ Built-in Action Modules:** Web search, code generation/running, flight finder, Steam game updates, hardware telemetry, calendar/reminders, pushup counter, and WhatsApp/Telegram automation.
+- 🏗️ **Multi-Provider LLM Pool & Triple-Mode Architecture:** Switch seamlessly between **Hybrid**, **Server (24/7 Cloud VPS)**, **Local (Ollama)**, and **Offline (100% internet-free)** modes. Features automatic failover fallback chains (NVIDIA NIM, Groq, Gemini, OpenAI, Claude, Ollama, DeepSeek).
+- 📱 **Android Termux Companion (%100 Free / Zero-Cost):** Powered entirely by open-source **Termux & Termux:API**. Listens for incoming phone calls, executes a smart **14-second delayed auto-answer** rule to act as an autonomous secretary, tracks live battery telemetry, and auto-starts on boot via **Termux:Boot**.
+- ☎️ **VoIP / SIP Cloud PBX Secretary:** Native SIP client (`core/sip_bridge.py` via `pyVoIP`) answering incoming calls directly on your PC or Oracle Cloud VPS when your mobile phone is off or unreachable via carrier call forwarding (`*62*`). Compatible with Netgsm 0850, Asterisk, and Zadarma.
+- 👁️ **Multimodal Vision & Camera Suite:** Triple-fallback screen capture (`MSS ➔ PIL ImageGrab ➔ PyAutoGUI`), webcam support (`cv2.VideoCapture`) for real-world environmental awareness, and an autonomous **Vision Clicker** to identify and click GUI elements on your screen.
+- 🖱️ **Zero-Permission Autonomous Desktop Operator:** Directly operates Instagram DM, WhatsApp Web, mouse/keyboard simulation, and application management without redundant permission dialogs.
+- 🧩 **Drop-In Plugin Architecture:** Add new tools simply by placing `.py` files inside the `plugins/` directory. Zero code modifications required.
+- 🌐 **Web Control Dashboard (PWA):** Live hardware telemetry, remote chat, operating mode selector, and device control from PC or mobile at `http://localhost:8080`.
+- 🤖 **Stark Industries Human-Like Discord Bot:** Chat naturally without robotic AI clichés, send attachments/images for vision inspection, join voice channels, and receive instant rich embeds when phone calls end.
+- 🎙️ **Zarif Kadın Sesi & Voice Studio:** Hybrid speech engine utilizing Edge-TTS (`tr-TR-EmelNeural`) with warm holographic filtering and Piper Neural (`tr_TR-dfki-medium`) for offline synthesis. Dedicated Voice Studio GUI for acoustic fine-tuning.
 
 ---
 
@@ -68,14 +70,16 @@
 
 | Subsystem | Underlying Technology | Primary Responsibility |
 |---|---|---|
-| **LLM Pool** | Ollama / GenAI / OpenAI / Anthropic | Intelligent query routing, fallback resolution, and vision reasoning. |
+| **LLM Pool & Triple-Mode** | Ollama / GenAI / NIM / OpenAI / Claude | Intelligent query routing, fallback resolution, and Hybrid/Server/Local/Offline switching. |
+| **SIP PBX Secretary** | pyVoIP (RFC 3261 / 3550 RTP) | Live call answering on PC/VPS when phone is off via carrier call forwarding (`*62*`). |
+| **Termux Phone Companion** | Termux & Termux:API / Fast-polling | Zero-cost call notification, 14s auto-answer, battery telemetry, and Termux:Boot startup. |
+| **Voice Engine & Studio** | Edge-TTS / Piper Neural / AudioProcessor | Warm holographic female voice, offline fallback, and Voice Studio fine-tuning GUI. |
+| **Vision & Camera Suite** | MSS / PIL / OpenCV / PyAutoGUI | Screen understanding, webcam vision ("Bana bak"), and autonomous GUI vision clicking. |
 | **Plugin Registry** | Python `importlib` / Dynamic Dispatch | Automatic discovery and validation of drop-in tools in `plugins/`. |
-| **Web Dashboard** | FastAPI / HTML5 / Uvicorn | Real-time browser control and hardware telemetry on port 8080. |
-| **Phone Bridge** | WebSockets / AsyncIO | Two-way audio bridge with Android Companion app for automated call answering. |
-| **Discord Engine** | `discord.py` / FFmpeg | Human-like text conversation, image understanding, and voice channel streaming. |
-| **System Telemetry** | `psutil` / NVML `ctypes` / WMI | Subprocess-free CPU, RAM, GPU, and temperature monitoring. |
-| **Vision Diagnostics** | MSS / Pillow / Base64 Vision | Active window inspection, OCR, and multimodal visual analysis. |
-| **Desktop Automation** | `pygetwindow` / `pyautogui` / Shell | Window focus, desktop minimize/restore, volume, and media keys. |
+| **Web Dashboard** | FastAPI / HTML5 / Uvicorn | Real-time browser control, operating mode selection, and hardware telemetry on port 8080. |
+| **Discord Engine** | `discord.py` / FFmpeg | Human-like text conversation, image understanding, phone call rich embeds, and `!mode`. |
+| **System Telemetry** | `psutil` / NVML `ctypes` / WMI | Subprocess-free CPU, RAM, GPU, network, and temperature monitoring. |
+| **Desktop Automation** | `pygetwindow` / `pyautogui` / Shell | Zero-permission Instagram DM, WhatsApp, window focus, volume, and media keys. |
 
 ---
 

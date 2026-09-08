@@ -64,11 +64,24 @@ class PhoneBridge:
             self.current_call_handler = CallHandler(caller_name, caller_number)
 
             if auto_answer:
-                print("[PhoneBridge] 🤖 Otomatik cevaplama devrede...")
-                await websocket.send(json.dumps({
-                    "command": "answer_call",
-                    "greeting": cfg.get("greeting", "Merhaba, ben EDITH."),
-                }))
+                delay = int(cfg.get("auto_answer_delay_seconds", 14))
+                print(f"[PhoneBridge] ⏳ Otomatik cevaplama için bekleniyor ({delay} sn - kullanıcı açmazsa tam kapanmadan önce açılacak)...")
+
+                async def _delayed_answer():
+                    try:
+                        await asyncio.sleep(delay)
+                        if self.current_call_handler:
+                            print("[PhoneBridge] 🤖 Bekleme süresi doldu, çağrı EDITH tarafından cevaplanıyor...")
+                            await websocket.send(json.dumps({
+                                "command": "answer_call",
+                                "greeting": cfg.get("greeting", f"Merhaba, ben Buğra'nın asistanı EDITH. {caller_name}, nasıl yardımcı olabilirim?"),
+                            }))
+                    except asyncio.CancelledError:
+                        print("[PhoneBridge] ℹ️ Çağrı iptal edildi veya kullanıcı kendisi açtı.")
+
+                if hasattr(self, "_answer_task") and self._answer_task and not self._answer_task.done():
+                    self._answer_task.cancel()
+                self._answer_task = asyncio.create_task(_delayed_answer())
 
         # 2. ARAYAN KONUŞTU (SPEECH TO TEXT)
         elif event_type == "caller_speech":
@@ -80,10 +93,13 @@ class PhoneBridge:
                     "text": reply,
                 }))
 
-        # 3. ÇAĞRI BİTTİ (CALL ENDED)
-        elif event_type == "call_ended":
-            print("[PhoneBridge] 📴 Arama sonlandı.")
-            self.current_call_handler = None
+        # 3. ÇAĞRI BİTTİ VEYA KULLANICI AÇTI (CALL ENDED / ANSWERED)
+        elif event_type in ("call_ended", "call_answered", "call_answered_by_user"):
+            print(f"[PhoneBridge] 📴 Arama durumu: {event_type}")
+            if hasattr(self, "_answer_task") and self._answer_task and not self._answer_task.done():
+                self._answer_task.cancel()
+            if event_type == "call_ended":
+                self.current_call_handler = None
 
     def start_server(self):
         """WebSocket sunucusunu arka planda başlatır."""

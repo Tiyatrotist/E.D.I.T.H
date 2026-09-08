@@ -3,9 +3,16 @@ TTS (Text-to-Speech) — Öncelikli olarak Piper Neural TTS (Kadın Sesi) kullan
 Fallback olarak Pyttsx3 ve Windows SAPI'ya geçer.
 """
 
+import os
 import subprocess
 import threading
-import os
+from typing import Optional
+
+try:
+    from core.voice_engine import speak_edith, get_voice_engine
+    VOICE_ENGINE_AVAILABLE = True
+except ImportError:
+    VOICE_ENGINE_AVAILABLE = False
 
 try:
     from actions.piper_tts import speak_piper, get_piper_voice
@@ -45,7 +52,17 @@ def speak_text(text: str, on_done=None, blocking: bool = False, rate: int = None
     if len(text) > max_len:
         text = text[:max_len] + "..."
 
-    # 1. Öncelik: Piper Neural TTS (Kadın Sesi)
+    # 1. Öncelik: EDITH Gelişmiş Zarif Kadın Sesi Motoru (EmelNeural + Hologram)
+    if VOICE_ENGINE_AVAILABLE:
+        try:
+            print(f"[TTS] 🎙️ EDITH zarif kadın sesi ile seslendiriliyor ({language}): {text[:50]}...")
+            success = speak_edith(text, language=language, blocking=blocking, on_done=on_done)
+            if success:
+                return
+        except Exception as e:
+            print(f"[TTS] ⚠️ VoiceEngine hatası: {e}, Piper/Pyttsx3'e geçiliyor...")
+
+    # 2. Öncelik: Piper Neural TTS (Kadın Sesi)
     if PIPER_AVAILABLE:
         try:
             print(f"[TTS] Piper kadın sesi ile seslendiriliyor ({language}): {text[:50]}...")
@@ -169,3 +186,28 @@ def get_available_voices() -> list[str]:
         return [line.strip() for line in result.stdout.splitlines() if line.strip()]
     except Exception:
         return []
+
+
+def synthesize_to_wav_bytes(text: str, language: str = "tr") -> Optional[bytes]:
+    """Metni sentezleyip WAV ses baytları olarak döndürür."""
+    import tempfile
+    try:
+        from core.voice_engine import VoiceEngine
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+            tmp_path = tf.name
+        try:
+            engine = VoiceEngine.get_instance()
+            success = engine.synthesize_to_file(text, tmp_path, language=language, apply_effects=False)
+            if success and os.path.exists(tmp_path):
+                with open(tmp_path, "rb") as f:
+                    return f.read()
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[TTS] Sentezleme bayt hatası: {e}")
+    return None
+

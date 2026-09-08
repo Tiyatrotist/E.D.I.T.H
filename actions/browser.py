@@ -98,4 +98,28 @@ def browser_control(action: str, url: str = None, query: str = None) -> str:
         except Exception as e:
             return f"Sekme kapatılamadı: {e}"
 
+    # 5. DM / MESAJ KUTUSU AÇ (Instagram, Twitter, WhatsApp, Discord vb.)
+    elif action in ("open_dm", "dm", "messages", "inbox"):
+        platform = (query or url or "").lower().strip()
+        dm_urls = {
+            "instagram": "https://www.instagram.com/direct/inbox/",
+            "isntagram": "https://www.instagram.com/direct/inbox/",
+            "insta":     "https://www.instagram.com/direct/inbox/",
+            "twitter":   "https://x.com/messages",
+            "x":         "https://x.com/messages",
+            "linkedin":  "https://www.linkedin.com/messaging/",
+            "whatsapp":  "https://web.whatsapp.com",
+            "discord":   "https://discord.com/channels/@me",
+            "telegram":  "https://web.telegram.org",
+        }
+        target_url = None
+        for k, v in dm_urls.items():
+            if k in platform:
+                target_url = v
+                break
+        if not target_url:
+            target_url = url if (url and url.startswith("http")) else "https://www.instagram.com/direct/inbox/"
+        _open(target_url)
+        return f"Mesaj kutusu tarayıcıda açıldı: {target_url}"
+
     return f"Bilinmeyen tarayıcı eylemi: {action}"

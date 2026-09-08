@@ -58,6 +58,12 @@ class LocalLLMClient:
             max_tokens=max_tokens,
         )
 
+    def get_active_model_info(self) -> str:
+        """Kullanılan son model ve sağlayıcı adını döndürür."""
+        p, m = self.pool.get_last_used_info()
+        short_m = m.split("/")[-1].split(":")[0] if ("/" in m or ":" in m) else m
+        return f"{short_m} ({p})" if short_m else p
+
     async def generate_response_stream(
         self,
         prompt: str,

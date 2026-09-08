@@ -61,6 +61,10 @@ venv.bak/
 # User configurations and credentials (CRITICAL)
 config/api_keys.json
 api_keys.json
+memory/call_logs.json
+memory/chat_history.json
+memory/memory.json
+memory/phone_book.json
 *.pem
 *.key
 *.token
@@ -90,3 +94,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# AI Agent custom rules & private workspace instructions (DO NOT COMMIT)
+.agents/
+AGENTS.md
+GEMINI.md
+project_rules.md

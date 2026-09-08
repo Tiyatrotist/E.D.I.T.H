@@ -62,11 +62,18 @@ python main.py
 
 ---
 
-## 🏗️ 3. Multi-Provider LLM Pool Setup
+## 🏗️ 3. Multi-Provider LLM Pool & Triple-Mode Architecture
 
-EDITH supports 9 different LLM providers and includes an automatic fallback chain (if your active provider encounters an error or rate limit, it automatically switches to the next configured provider).
+EDITH features a resilient **Triple-Mode Architecture** (`core/mode_manager.py`) that operates seamlessly across three distinct deployment environments with automatic fallback:
+1. **Hybrid Mode (Default):** Uses high-speed cloud/server providers (NVIDIA NIM, Groq, Gemini) when connected, and immediately falls back to local models if internet is interrupted.
+2. **Server Mode:** Optimized for 24/7 headless Oracle Cloud / VPS operation. Syncs with desktop and mobile clients via REST & WebSockets.
+3. **Local Mode:** Uses local hardware inference (Ollama / Local GGUF) with zero cloud dependencies.
+4. **Offline Mode:** Completely internet-independent. Operates with local Whisper STT, Piper TTS, local JSON memory, and desktop tools even during complete network loss.
 
-You can configure providers via the GUI (**Settings** ➔ **LLM Pool**) or directly in `config/api_keys.json`:
+You can switch operating modes on the fly via the Desktop HUD, Web PWA Dashboard, or Discord command (`!mode`).
+
+### LLM Providers & Fallback Chain
+EDITH supports 9 different LLM providers with automated failover. You can configure providers via the GUI (**Settings** ➔ **LLM Pool**) or in `config/api_keys.json`:
 
 ```json
 {
@@ -142,22 +149,39 @@ When EDITH starts, a FastAPI web control server automatically launches in the ba
 
 ---
 
-## 📞 5. Android Companion Phone Bridge
+## 📞 5. Android Termux Companion & VoIP/SIP Secretary
 
-To allow EDITH to answer incoming calls and converse with callers like an AI secretary:
+EDITH provides two complementary systems to ensure you never miss a call, whether your phone is online or completely powered off:
 
-1. Verify `phone_companion` in `config/api_keys.json`:
-   ```json
-   "phone_companion": {
-       "enabled": true,
-       "auto_answer": true,
-       "greeting": "Hello, I am EDITH, AI assistant for Bugra. How may I help you?",
-       "ws_port": 8765
-   }
+### A. Android Termux Companion (%100 Free & Open-Source)
+No paid third-party apps required. EDITH uses the official **Termux** and **Termux:API** stack.
+
+1. **One-Line Dynamic Setup on Android:**
+   Open Termux on your Android phone (connected to the same Wi-Fi) and run:
+   ```bash
+   curl -s http://<YOUR_PC_IP>:8080/api/termux/setup | bash
    ```
-2. EDITH listens for incoming WebSocket connections at `ws://0.0.0.0:8765`.
-3. The Android Companion app connects to your PC over your local WiFi network.
-4. When your phone rings, EDITH answers the call, transcribes caller speech (STT), reasons with LLMPool, and speaks back (TTS).
+2. **What It Does:**
+   - Installs `termux-api`, `python`, `curl`, and `jq`.
+   - Downloads `edith_phone.py` and establishes connection to EDITH.
+   - Sets up **Termux:Boot** (`~/.termux/boot/edith_boot.sh`) so the listener runs automatically in the background whenever your phone boots.
+   - Applies the **14-second delayed auto-answer rule**: When an incoming call arrives, it rings for 14 seconds allowing you to pick up. If you don't answer, EDITH answers right before carrier drop, greets the caller, transcribes speech, reasons with LLMPool, and sends a summary to your PC and Discord.
+   - Syncs live phone battery level to the HUD and Web Dashboard.
+
+### B. VoIP / SIP PBX Secretary (When Phone is Powered Off)
+If your mobile phone's battery dies or the phone is shut down, standard carrier conditional call forwarding routes incoming calls to EDITH's built-in SIP PBX:
+
+1. **Configure SIP in EDITH:**
+   Navigate to GUI **Settings** ➔ **🤖 Discord & Telefon** ➔ **SIP Santral Sekreteri**:
+   - Enable SIP and enter your SIP provider details (e.g., Netgsm 0850, Asterisk, or Zadarma).
+2. **Enable Carrier Forwarding on Mobile:**
+   Dial the international GSM standard code on your phone dialer:
+   ```text
+   *62*<YOUR_SIP_DID_NUMBER>#
+   ```
+   *(To disable: `##62#`)*
+3. **Live AI Answering:**
+   When your phone is turned off, the carrier routes the call directly to EDITH on your PC or Oracle Cloud VPS. EDITH answers the call live, records the message, and syncs it across your dashboard and Discord.
 
 ---
 

@@ -61,6 +61,22 @@ def get_local_ip() -> str:
         return "192.168.1.101"
 
 
+def get_public_url() -> str:
+    """Cloudflare Tunnel veya genel HTTPS erişim adresini döndürür."""
+    tunnel_log = Path("/var/log/edith-tunnel.log")
+    if tunnel_log.exists():
+        try:
+            with open(tunnel_log, "r", encoding="utf-8", errors="ignore") as f:
+                for line in reversed(f.readlines()):
+                    if ".trycloudflare.com" in line:
+                        m = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
+                        if m:
+                            return m.group(0)
+        except Exception:
+            pass
+    return "https://training-opportunity-experienced-million.trycloudflare.com"
+
+
 def load_call_logs() -> list[dict]:
     if CALL_LOGS_FILE.exists():
         try:
@@ -100,6 +116,8 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="EDITH Mobile">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/alppunlu/E.D.I.T.H/main/assets/edith_icon.png">
     <title>E.D.I.T.H // Mobil Asistan & Kontrol</title>
     <style>
         :root {
@@ -126,6 +144,11 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
         .brand { font-size: 18px; font-weight: 900; letter-spacing: 2px; color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
         .live-badge { font-size: 11px; font-weight: bold; color: #00ff88; display: flex; align-items: center; gap: 6px; }
         .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff88; box-shadow: 0 0 8px #00ff88; animation: blink 1.5s infinite; }
+        .install-btn {
+            background: var(--primary); color: var(--bg); border: none; border-radius: 4px;
+            padding: 4px 10px; font-size: 11px; font-weight: bold; cursor: pointer; display: none;
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         /* TABS CONTENT */
@@ -214,6 +237,17 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
         .call-snippet { font-size: 13px; color: var(--text-dim); line-height: 1.4; }
 
         /* BOTTOM NAVBAR */
+        .mode-select {
+            background: #041818;
+            color: var(--primary);
+            border: 1px solid var(--primary-dim);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+        }
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; height: 68px;
             background: rgba(3, 14, 14, 0.95); backdrop-filter: blur(14px);
@@ -234,6 +268,13 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
     <!-- TOPBAR -->
     <div class="topbar">
         <div class="brand">E.D.I.T.H</div>
+        <select id="mode-select" class="mode-select" onchange="changeMode(this.value)" title="Çalışma Modu">
+            <option value="hybrid">HİBRİT</option>
+            <option value="server">SERVER</option>
+            <option value="local">LOCAL</option>
+            <option value="offline">OFFLINE</option>
+        </select>
+        <button id="pwaInstallBtn" class="install-btn" onclick="installPWA()">📱 UYGULAMAYI YÜKLE</button>
         <div class="live-badge"><div class="pulse-dot"></div> CANLI BAĞLANTI</div>
     </div>
 
@@ -471,6 +512,35 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
         setInterval(fetchStats, 3000);
         fetchStats();
 
+        async function loadMode() {
+            try {
+                const res = await fetch('/api/mode');
+                const data = await res.json();
+                const sel = document.getElementById('mode-select');
+                if (sel && data.mode) {
+                    sel.value = data.mode;
+                }
+            } catch(e) {}
+        }
+        setInterval(loadMode, 5000);
+        loadMode();
+
+        async function changeMode(newMode) {
+            try {
+                const res = await fetch('/api/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: newMode })
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', '⚙️ Çalışma Modu Değiştirildi: ' + newMode.toUpperCase());
+                }
+            } catch(e) {
+                console.error('Mode change error:', e);
+            }
+        }
+
         async function loadCalls() {
             try {
                 const res = await fetch('/api/phone/logs');
@@ -502,10 +572,84 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 loadCalls();
             } catch(e) {}
         }
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById('pwaInstallBtn');
+            if (btn) btn.style.display = 'block';
+        });
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    const btn = document.getElementById('pwaInstallBtn');
+                    if (btn) btn.style.display = 'none';
+                    deferredPrompt = null;
+                });
+            } else {
+                alert("EDITH'i telefonunuzda tam ekran uygulama olarak çalıştırmak için tarayıcı menüsünden 'Ana Ekrana Ekle' (Add to Home screen) seçeneğine dokunabilirsiniz.");
+            }
+        }
     </script>
 </body>
 </html>
 """
+
+
+@app.get("/manifest.json")
+async def get_manifest():
+    """PWA Web Manifesti."""
+    return {
+        "name": "E.D.I.T.H Mobile Assistant",
+        "short_name": "EDITH",
+        "description": "Stark Industries Yapay Zeka Mobil Asistan & Telefon Sekreteri",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#020c0c",
+        "theme_color": "#00d4c0",
+        "orientation": "portrait",
+        "icons": [
+            {
+                "src": "https://raw.githubusercontent.com/alppunlu/E.D.I.T.H/main/assets/edith_icon.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "https://raw.githubusercontent.com/alppunlu/E.D.I.T.H/main/assets/edith_icon.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    }
+
+
+@app.get("/api/config")
+async def get_server_config():
+    """Sunucu yapılandırmasını döndürür."""
+    cfg = load_app_config()
+    return {
+        "active_provider": cfg.get("active_provider", "nim"),
+        "fallback_chain": cfg.get("fallback_chain", []),
+        "phone_companion": cfg.get("phone_companion", {}),
+        "discord": {
+            "enabled": cfg.get("discord", {}).get("enabled", False),
+            "personality": cfg.get("discord", {}).get("personality", "casual"),
+            "bot_configured": bool(cfg.get("discord", {}).get("bot_token")),
+        },
+        "server_sync": cfg.get("server_sync", {}),
+    }
+
+
+@app.post("/api/config")
+async def update_server_config(payload: dict):
+    """Sunucu ayarlarını günceller."""
+    from app_config import save_app_config
+    try:
+        save_app_config(payload)
+        return {"status": "ok", "message": "Sunucu ayarları başarıyla kaydedildi."}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -522,6 +666,7 @@ async def api_stats():
 async def api_info():
     return {
         "ip": get_local_ip(),
+        "public_url": get_public_url(),
         "port": 8080,
         "ws_port": 8765,
         "app": "EDITH",
@@ -531,7 +676,7 @@ async def api_info():
 
 @app.get("/api/tts")
 async def api_tts(text: str = ""):
-    """Piper TTS ile metni WAV formatında doğrudan telefona akıtır."""
+    """EDITH zarif kadın sesi ile metni seslendirip doğrudan telefona akıtır."""
     if not text.strip():
         return Response(status_code=400)
 
@@ -540,7 +685,26 @@ async def api_tts(text: str = ""):
     if not clean_text:
         return Response(status_code=400)
 
-    # 2. Piper WAV sentezleme
+    # 2. VoiceEngine ile sentezleme (Edge-TTS EmelNeural / Piper fallback)
+    try:
+        from core.voice_engine import get_voice_engine
+        engine = get_voice_engine()
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            tmp_path = f.name
+
+        ok = engine.synthesize_to_file(clean_text[:400], tmp_path, language="tr")
+        if ok and os.path.exists(tmp_path):
+            with open(tmp_path, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            return Response(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as e:
+        print(f"[DashboardTTS] ⚠️ VoiceEngine denemesi: {e}")
+
+    # 3. Piper WAV Fallback
     try:
         from actions.piper_tts import synthesize_to_wav
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -556,7 +720,7 @@ async def api_tts(text: str = ""):
                 pass
             return Response(content=audio_bytes, media_type="audio/wav")
     except Exception as e:
-        print(f"[DashboardTTS] ⚠️ Hata: {e}")
+        print(f"[DashboardTTS] ⚠️ Piper Fallback hatası: {e}")
 
     return Response(status_code=500)
 
@@ -568,20 +732,25 @@ async def api_chat(payload: dict):
         return {"response": "Sizi dinliyorum."}
 
     client = LocalLLMClient()
-    from main import TOOLS_DESCRIPTION, load_system_prompt
-    sys_instruction = load_system_prompt("tr") + "\n\n" + TOOLS_DESCRIPTION
+    try:
+        from main import TOOLS_DESCRIPTION, load_system_prompt
+        sys_instruction = load_system_prompt("tr") + "\n\n" + TOOLS_DESCRIPTION
+    except Exception:
+        prompt_file = Path(__file__).resolve().parent.parent / "core" / "prompt.txt"
+        sys_instruction = prompt_file.read_text(encoding="utf-8") if prompt_file.exists() else "Sen E.D.I.T.H yapay zeka asistanısın."
 
     raw_resp = await client.generate_response(prompt=prompt, system_instruction=sys_instruction, max_tokens=512)
 
     # Araç Çağrısı Kontrolü
-    from main import EdithLive
-    edith_dummy = EdithLive.__new__(EdithLive)
-    tool_name, args, clean_text = edith_dummy._parse_tool_call(raw_resp)
+    clean_text = raw_resp
+    try:
+        from main import EdithLive
+        edith_dummy = EdithLive.__new__(EdithLive)
+        tool_name, args, parsed_text = edith_dummy._parse_tool_call(raw_resp)
+        clean_text = parsed_text or raw_resp
 
-    if tool_name:
-        try:
+        if tool_name:
             print(f"[Dashboard] 🛠️ Mobil Komut Araç Çağrısı: {tool_name} {args}")
-            # Aracı çalıştır
             tool_res = await edith_dummy._execute_tool(tool_name, args)
             followup = await client.generate_response(
                 prompt=f"{prompt}\nAraç sonucu: {tool_res}\nKullanıcıya bilgi ver:",
@@ -589,8 +758,8 @@ async def api_chat(payload: dict):
                 max_tokens=256,
             )
             return {"response": followup or tool_res}
-        except Exception as e:
-            return {"response": f"{tool_name} işlemi sırasında bir aksaklık oldu."}
+    except Exception as e:
+        print(f"[Dashboard] Tool parse/exec fallback: {e}")
 
     return {"response": clean_text}
 
@@ -613,6 +782,48 @@ async def api_command(payload: dict):
         res = "Bilinmeyen komut"
 
     return {"status": "ok", "result": res}
+
+
+@app.get("/api/history")
+async def get_history(limit: int = 50, since_ts: float = 0.0):
+    """Merkezi sohbet geçmişini döndürür."""
+    from core.chat_history import get_chat_history
+    mgr = get_chat_history()
+    if since_ts > 0:
+        return mgr.get_since(since_ts)
+    return mgr.get_recent(limit)
+
+
+@app.post("/api/history")
+async def post_history(payload: dict):
+    """Sohbet geçmişine yeni mesaj ekler."""
+    from core.chat_history import get_chat_history
+    mgr = get_chat_history()
+    role = payload.get("role", "user")
+    content = payload.get("content", "")
+    source = payload.get("source", "desktop")
+    metadata = payload.get("metadata", {})
+    ts = payload.get("timestamp")
+    msg_id = payload.get("id")
+    msg = mgr.add_message(role=role, content=content, source=source, metadata=metadata, msg_id=msg_id, timestamp=ts)
+    return {"status": "ok", "message": msg}
+
+
+@app.get("/api/sync")
+async def api_sync(since_ts: float = 0.0, last_call_id: int = 0):
+    """İstemcinin yeni çağrıları ve sohbet geçmişini tek seferde senkronize etmesini sağlar."""
+    from core.chat_history import get_chat_history
+    mgr = get_chat_history()
+    recent_messages = mgr.get_since(since_ts) if since_ts > 0 else mgr.get_recent(20)
+    all_calls = load_call_logs()
+    new_calls = [c for c in all_calls if c.get("id", 0) > last_call_id]
+
+    return {
+        "timestamp": time.time(),
+        "messages": recent_messages,
+        "new_calls": new_calls,
+        "all_recent_calls": all_calls[:10],
+    }
 
 
 @app.get("/api/phone/logs")
@@ -638,11 +849,20 @@ async def phone_incoming_call(payload: dict):
 
     cfg = load_app_config().get("phone_companion", {})
     auto_answer = cfg.get("auto_answer", True)
+    delay = int(cfg.get("auto_answer_delay_seconds", 14))
     greeting = cfg.get("greeting", f"Merhaba, ben Buğra'nın asistanı EDITH. {caller_name}, nasıl yardımcı olabilirim?")
+
+    # Masaüstü gelen çağrı bildirimini anında tetikle
+    if _INCOMING_CALL_CALLBACK:
+        try:
+            _INCOMING_CALL_CALLBACK(caller_name, caller_number)
+        except Exception as e:
+            print(f"[PhoneBridge] ⚠️ Gelen arama callback hatası: {e}")
 
     return {
         "call_id": call_id,
         "auto_answer": auto_answer,
+        "answer_delay_seconds": delay,
         "greeting": greeting,
     }
 
@@ -665,18 +885,27 @@ async def phone_caller_speech(payload: dict):
 
 
 _CALL_NOTIFY_CALLBACK = None
+_INCOMING_CALL_CALLBACK = None
 
 def set_call_notify_callback(cb):
     """Masaüstü bildirimleri için callback kaydeder."""
     global _CALL_NOTIFY_CALLBACK
     _CALL_NOTIFY_CALLBACK = cb
 
+def set_incoming_call_callback(cb):
+    """Gelen arama çaldığında masaüstü uyarısı için callback kaydeder."""
+    global _INCOMING_CALL_CALLBACK
+    _INCOMING_CALL_CALLBACK = cb
+
 
 @app.post("/api/phone/call_ended")
 async def phone_call_ended(payload: dict):
-    """Arama sonlandığında görüşme kaydını hafızaya yazar ve bilgisayara sesli bildirir."""
+    """Arama sonlandığında görüşme kaydını hafızaya yazar, Discord'a ve bilgisayara sesli bildirir."""
     call_id = payload.get("call_id", "")
     session = _ACTIVE_CALLS.pop(call_id, None)
+
+    caller_name = (session["caller_name"] if session else payload.get("caller_name")) or "Bilinmeyen Numara"
+    caller_number = (session["caller_number"] if session else payload.get("caller_number")) or ""
 
     if session:
         handler = session["handler"]
@@ -695,34 +924,234 @@ async def phone_call_ended(payload: dict):
         else:
             summary = "Görüşme tamamlandı."
 
-        save_call_log(
-            session["caller_name"],
-            session["caller_number"],
-            handler.history,
-            summary=summary.strip(),
-        )
+        clean_summary = summary.strip()
+        history = handler.history
+    else:
+        clean_summary = payload.get("summary", "Arama tamamlandı.").strip()
+        history = []
 
-        if _CALL_NOTIFY_CALLBACK:
-            try:
-                _CALL_NOTIFY_CALLBACK(session["caller_name"], summary.strip())
-            except Exception as e:
-                print(f"[PhoneBridge] ⚠️ Bildirim hatası: {e}")
+    # 1. Çağrı günlüğüne kaydet
+    save_call_log(
+        caller_name,
+        caller_number,
+        history,
+        summary=clean_summary,
+    )
+
+    # 2. Kalıcı ortak sohbet geçmişine ekle
+    from core.chat_history import get_chat_history
+    get_chat_history().add_message(
+        role="phone_call",
+        content=f"Arayan: {caller_name}. Bıraktığı Not: {clean_summary}",
+        source="phone",
+        metadata={
+            "caller_name": caller_name,
+            "caller_number": caller_number,
+            "summary": clean_summary,
+        }
+    )
+
+    # 3. Discord Bot açıksa kanala anında zengin bildirim gönder
+    try:
+        from discord_bot.bot import send_discord_alert
+        send_discord_alert(
+            title="Telefon Çağrısı Tamamlandı",
+            description=f"**Not:** {clean_summary}",
+            caller_name=f"{caller_name} ({caller_number})",
+        )
+    except Exception as e:
+        print(f"[PhoneBridge] ⚠️ Discord bildirim hatası: {e}")
+
+    # 4. Masaüstü yerel callback'i tetikle
+    if _CALL_NOTIFY_CALLBACK:
+        try:
+            _CALL_NOTIFY_CALLBACK(caller_name, clean_summary)
+        except Exception as e:
+            print(f"[PhoneBridge] ⚠️ Bildirim hatası: {e}")
+
+    # 5. Telefon kapalıysa çevrimdışı kuyruğa ekle (telefon açıldığında bildirmek için)
+    now = time.time()
+    last_seen = _PHONE_STATUS.get("last_seen", 0.0)
+    is_phone_offline = (last_seen == 0.0) or (now - last_seen > 180)
+    if is_phone_offline or payload.get("source") != "termux":
+        if "offline_queue" not in _PHONE_STATUS:
+            _PHONE_STATUS["offline_queue"] = []
+        _PHONE_STATUS["offline_queue"].append({
+            "type": "missed_call",
+            "caller_name": caller_name,
+            "caller_number": caller_number,
+            "summary": clean_summary,
+            "timestamp": now,
+        })
 
     return {"status": "recorded"}
+
+
+
+# ── Termux & Telefon Durumu (Batarya / Kurulum / Çevrimdışı Kuyruk) ─────────
+_PHONE_STATUS = {
+    "battery": None,
+    "status": "unknown",
+    "last_seen": 0.0,
+    "offline_queue": [],
+}
+
+@app.post("/api/phone/battery")
+async def phone_battery(payload: dict):
+    """Termux'tan gelen batarya telemetrisini kaydeder ve varsa çevrimdışı kuyruğu teslim eder."""
+    global _PHONE_STATUS
+    pct = payload.get("percentage")
+    st = payload.get("status", "")
+    now = time.time()
+
+    last_seen = _PHONE_STATUS.get("last_seen", 0.0)
+    was_offline = (last_seen == 0.0) or (now - last_seen > 180)
+
+    queued_events = list(_PHONE_STATUS.get("offline_queue", []))
+    if was_offline and queued_events:
+        _PHONE_STATUS["offline_queue"] = []
+
+    _PHONE_STATUS["battery"] = pct
+    _PHONE_STATUS["status"] = st
+    _PHONE_STATUS["last_seen"] = now
+
+    return {
+        "status": "ok",
+        "was_offline": was_offline,
+        "pending_offline_events": queued_events,
+    }
+
+@app.get("/api/phone/status")
+async def phone_status():
+    """Bağlı telefonun durumunu, şarjını ve çevrimiçi/çevrimdışı bilgisini döndürür."""
+    now = time.time()
+    last_seen = _PHONE_STATUS.get("last_seen", 0.0)
+    is_online = (last_seen > 0.0) and (now - last_seen <= 300)
+    return {
+        "battery": _PHONE_STATUS.get("battery"),
+        "status": _PHONE_STATUS.get("status"),
+        "last_seen": last_seen,
+        "is_online": is_online,
+        "pending_offline_count": len(_PHONE_STATUS.get("offline_queue", [])),
+    }
+
+@app.get("/api/phone/sync_offline")
+async def phone_sync_offline():
+    """Telefon açıldığında birikmiş çevrimdışı notları ve çağrıları çeker."""
+    global _PHONE_STATUS
+    events = list(_PHONE_STATUS.get("offline_queue", []))
+    _PHONE_STATUS["offline_queue"] = []
+    return {"events": events, "count": len(events)}
+
+
+@app.get("/api/mode")
+async def get_operating_mode():
+    """Sistem çalışma modunu ve geçerli fiziksel modu döndürür."""
+    from core.mode_manager import get_mode_manager
+    mgr = get_mode_manager()
+    return {
+        "mode": mgr.get_mode(),
+        "effective_mode": mgr.get_effective_mode(),
+        "display_text": mgr.get_display_text(),
+        "is_online": mgr.is_online(),
+        "available_modes": ["hybrid", "server", "local", "offline"],
+    }
+
+@app.post("/api/mode")
+async def set_operating_mode(payload: dict):
+    """Mobil cihaz veya harici istemciden sistem modunu günceller."""
+    from core.mode_manager import get_mode_manager
+    new_mode = payload.get("mode", "")
+    mgr = get_mode_manager()
+    success = mgr.set_mode(new_mode)
+    if success:
+        return {
+            "status": "ok",
+            "mode": mgr.get_mode(),
+            "effective_mode": mgr.get_effective_mode(),
+            "message": f"Çalışma modu '{new_mode}' olarak güncellendi.",
+        }
+    return JSONResponse(
+        status_code=400,
+        content={"status": "error", "message": f"Geçersiz mod: {new_mode}. (hybrid, server, local, offline olmalı)"}
+    )
+
+@app.get("/api/termux/setup")
+async def termux_setup_script(request: Request):
+    """Termux tek satırlık dinamik kurulum betiği."""
+    host_ip = request.headers.get("host", "").split(":")[0] or get_local_ip()
+    script_path = BASE_DIR / "scripts" / "termux" / "setup.sh"
+    if script_path.exists():
+        content = script_path.read_text(encoding="utf-8")
+        content = re.sub(r'PC_IP="\$\{1:-[^"]+\}"', f'PC_IP="${{1:-{host_ip}}}"', content)
+        return Response(content=content, media_type="text/plain; charset=utf-8")
+    return Response(content='echo "[HATA] Setup betiği bulunamadı."', media_type="text/plain")
+
+@app.get("/api/termux/edith_phone.py")
+async def termux_python_script(request: Request):
+    """Termux için Python dinleyici betiği."""
+    host_ip = request.headers.get("host", "").split(":")[0] or get_local_ip()
+    script_path = BASE_DIR / "scripts" / "termux" / "edith_phone.py"
+    if script_path.exists():
+        content = script_path.read_text(encoding="utf-8")
+        content = re.sub(r'DEFAULT_PC_HOST = "[^"]+"', f'DEFAULT_PC_HOST = "{host_ip}"', content)
+        return Response(content=content, media_type="text/plain; charset=utf-8")
+    return Response(content="# Not found", media_type="text/plain")
+
+@app.get("/api/termux/edith_phone.sh")
+async def termux_bash_script(request: Request):
+    """Termux için Bash dinleyici betiği."""
+    host_ip = request.headers.get("host", "").split(":")[0] or get_local_ip()
+    script_path = BASE_DIR / "scripts" / "termux" / "edith_phone.sh"
+    if script_path.exists():
+        content = script_path.read_text(encoding="utf-8")
+        content = re.sub(r'PC_IP="\$\{1:-[^"]+\}"', f'PC_IP="${{1:-{host_ip}}}"', content)
+        return Response(content=content, media_type="text/plain; charset=utf-8")
+    return Response(content="# Not found", media_type="text/plain")
 
 
 @app.post("/api/phone/simulate")
 async def phone_simulate():
     """Örnek bir telefon çağrısını simüle eder."""
     from core.call_handler import CallHandler
-    handler = CallHandler("Ahmet Yılmaz (İş)", "0532 555 0123")
+    from core.chat_history import get_chat_history
+
+    caller_name = "Ahmet Yılmaz (İş)"
+    caller_num = "0532 555 0123"
+    summary_text = "Yarınki proje toplantısı saat 14:00'e alındı."
+
+    handler = CallHandler(caller_name, caller_num)
     reply = await handler.generate_reply("Merhaba Buğra orada mı? Yarınki proje toplantısı saat 14:00'e alındı, haber verebilir misin?")
     save_call_log(
-        "Ahmet Yılmaz (İş)",
-        "0532 555 0123",
+        caller_name,
+        caller_num,
         handler.history,
-        summary="Yarınki proje toplantısı saat 14:00'e alındı.",
+        summary=summary_text,
     )
+
+    get_chat_history().add_message(
+        role="phone_call",
+        content=f"Arayan: {caller_name}. Bıraktığı Not: {summary_text}",
+        source="phone",
+        metadata={"caller_name": caller_name, "caller_number": caller_num, "summary": summary_text}
+    )
+
+    try:
+        from discord_bot.bot import send_discord_alert
+        send_discord_alert(
+            title="Yeni Telefon Çağrısı Cevaplandı (Simülasyon)",
+            description=f"**Not:** {summary_text}",
+            caller_name=f"{caller_name} ({caller_num})",
+        )
+    except Exception:
+        pass
+
+    if _CALL_NOTIFY_CALLBACK:
+        try:
+            _CALL_NOTIFY_CALLBACK(caller_name, summary_text)
+        except Exception:
+            pass
+
     return {"reply": reply}
 
 
@@ -736,3 +1165,4 @@ def start_dashboard(host: str = "0.0.0.0", port: int = 8080) -> None:
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
+

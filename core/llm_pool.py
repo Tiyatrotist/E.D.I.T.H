@@ -812,12 +812,29 @@ class LLMPool:
         return False
 
     def _resolve_chain(self) -> list[str]:
-        """Denenecek provider sırasını döndür: aktif → fallback chain."""
+        """Denenecek provider sırasını döndür: mod yöneticisine ve ağ durumuna göre filtreler."""
+        try:
+            from core.mode_manager import get_mode_manager
+            mode_mgr = get_mode_manager()
+            eff_mode = mode_mgr.get_effective_mode()
+        except Exception:
+            eff_mode = "hybrid"
+
+        # 1. Tamamen Çevrimdışı mod: Harici LLM ağ çağrısı yapma
+        if eff_mode == "offline":
+            return []
+
         chain = [self._active_provider]
         for name in self._fallback_chain:
             if name not in chain:
                 chain.append(name)
-        # Yüklü olmayanları filtrele
+
+        # 2. Yerel mod: Sadece yerel sağlayıcılar (ollama, local_openai)
+        if eff_mode == "local":
+            local_names = ("ollama", "local_openai")
+            return [n for n in chain if n in local_names and n in self._providers]
+
+        # 3. Server / Hybrid modu
         return [n for n in chain if n in self._providers]
 
     async def generate(
@@ -830,7 +847,7 @@ class LLMPool:
         """Fallback chain ile metin üret."""
         chain = self._resolve_chain()
         if not chain:
-            return "Hata: Hiçbir LLM provider yapılandırılmamış."
+            return ""
 
         last_error: Exception | None = None
         for name in chain:
@@ -838,6 +855,8 @@ class LLMPool:
             try:
                 result = await provider.generate(prompt, system, temperature, max_tokens)
                 if result:
+                    self._last_used_provider = name
+                    self._last_used_model = getattr(provider, "model", "")
                     return result
             except Exception as e:
                 last_error = e
@@ -848,6 +867,12 @@ class LLMPool:
         error_msg = str(last_error) if last_error else "Bilinmeyen hata"
         print(f"[LLMPool] ❌ Tüm provider'lar başarısız: {error_msg}")
         return ""
+
+    def get_last_used_info(self) -> tuple[str, str]:
+        """(last_provider, last_model) döndürür."""
+        p = getattr(self, "_last_used_provider", "") or self._active_provider
+        m = getattr(self, "_last_used_model", "") or self.get_active_model()
+        return p, m
 
     async def generate_vision(
         self,
@@ -905,6 +930,14 @@ class LLMPool:
         """Aktif provider'ın model adını döndür."""
         provider = self._providers.get(self._active_provider)
         return provider.model if provider else "unknown"
+
+    def get_active_model_info(self) -> str:
+        """Kullanıcı dostu aktif sağlayıcı ve model özetini döndürür."""
+        prov, model = self.get_last_used_info()
+        if not model or model in ("unknown", "none"):
+            return prov.upper() if prov else "LLM HAZIR"
+        short_model = model.split("/")[-1].split(":")[0]
+        return f"{short_model} ({prov})"
 
     def list_providers(self) -> list[dict]:
         """UI için provider listesi."""

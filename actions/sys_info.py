@@ -18,6 +18,8 @@ def sys_info(query: str) -> str:
 
     if query in ("battery", "pil", "all"):
         results.append(_battery())
+    if query in ("phone", "telefon", "phone_battery", "telefon pili", "telefon şarjı"):
+        results.append(_phone_status())
     if query in ("cpu", "işlemci", "all"):
         results.append(_cpu())
     if query in ("ram", "bellek", "memory", "all"):
@@ -34,7 +36,7 @@ def sys_info(query: str) -> str:
         results.append(_network())
 
     if not results:
-        results.append(f"Bilinmeyen sorgu: {query}. battery/cpu/ram/disk/time/date/network/all kullanın.")
+        results.append(f"Bilinmeyen sorgu: {query}. battery/phone/cpu/ram/disk/time/date/network/all kullanın.")
 
     return "\n".join(r for r in results if r)
 
@@ -133,3 +135,20 @@ def _network() -> str:
     except Exception:
         pass
     return "Ağ bağlantısı bulunamadı."
+
+
+def _phone_status() -> str:
+    """Termux üzerinden bağlanan telefonun batarya ve bağlantı durumunu döndürür."""
+    import time
+    try:
+        from dashboard.server import _PHONE_STATUS
+        pct = _PHONE_STATUS.get("battery")
+        st = _PHONE_STATUS.get("status", "")
+        last = _PHONE_STATUS.get("last_seen", 0)
+        if pct is not None and (time.time() - last < 600):
+            status_text = "Şarjda" if "charging" in str(st).lower() else "Pilde"
+            return f"Telefon Durumu: Pil %{pct} ({status_text}) — EDITH Termux Köprüsü Bağlı"
+        else:
+            return "Telefon şu an bağlı değil veya henüz telemetri göndermedi."
+    except Exception:
+        return "Telefon durumuna ulaşılamadı."
