@@ -515,6 +515,29 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
             </div>
             <div id="discord-result-box" style="display:none; margin-top:10px; padding:8px; background:rgba(0,0,0,0.6); border-radius:6px; font-size:11px; color:#cbfbf8;"></div>
         </div>
+
+        <!-- Kalıcı Bellek ve Semantik Bağlam Kartı (Rule 8 - Item 9) -->
+        <div class="card" style="border: 1px solid rgba(0, 212, 192, 0.4); background: linear-gradient(135deg, rgba(0, 212, 192, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>🧠 Kalıcı Bellek & Bağlam</span>
+                <span id="memory-count-badge" style="font-size:10px; color:var(--primary); cursor:pointer;" onclick="loadMemoryList()">Yenile ↻</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                EDITH'in oturumlar arasında aklında tuttuğu kişisel bilgiler, alışkanlıklar ve notlar.
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="memory-search-input" placeholder="Hafızada ara (örn: kedi, müzik, iş)..." style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(0,212,192,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px;">
+                <button class="ctrl-btn" style="border-color:var(--primary); font-weight:bold;" onclick="searchMemory()">🔍 Ara</button>
+            </div>
+            <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <input type="text" id="memory-add-key" placeholder="Anahtar (örn: dogum_gunu)" style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px;">
+                <input type="text" id="memory-add-val" placeholder="Değer (örn: 14 Mayıs)" style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px;">
+                <button class="ctrl-btn" style="padding:6px 10px; font-size:11px;" onclick="saveMemoryItem()">💾 Ekle</button>
+            </div>
+            <div id="memory-list-container" style="max-height:180px; overflow-y:auto; font-size:11px; margin-top:8px; background:rgba(0,0,0,0.5); border-radius:6px; padding:6px;">
+                <div style="color:var(--text-dim); text-align:center; padding:8px;">Yükleniyor...</div>
+            </div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -1107,6 +1130,124 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 }
             } catch(e) {
                 box.innerText = 'Hata: ' + e;
+            }
+        }
+
+        async function loadMemoryList() {
+            const container = document.getElementById('memory-list-container');
+            const badge = document.getElementById('memory-count-badge');
+            if(!container) return;
+            try {
+                const res = await fetch('/api/memory/list');
+                const d = await res.json();
+                const mem = d.memories || {};
+                let total = 0;
+                let html = '';
+
+                for(const [cat, items] of Object.entries(mem)) {
+                    if(typeof items === 'object' && items !== null) {
+                        for(const [k, v] of Object.entries(items)) {
+                            total++;
+                            const valStr = typeof v === 'object' && v.value !== undefined ? v.value : JSON.stringify(v);
+                            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                                <div><b style="color:var(--primary);">${k}:</b> <span style="color:#fff;">${valStr}</span> <span style="font-size:9px; color:var(--text-dim);">(${cat})</span></div>
+                                <button onclick="deleteMemoryItem('${cat}', '${k}')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px;">🗑️</button>
+                            </div>`;
+                        }
+                    }
+                }
+                if(total === 0) {
+                    container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Hafızada kayıt bulunmuyor.</div>';
+                } else {
+                    container.innerHTML = html;
+                }
+                if(badge) badge.innerText = total + ' Kayıt ↻';
+            } catch(e) {
+                container.innerHTML = '<div style="color:var(--danger); text-align:center;">Bellek yüklenemedi: ' + e + '</div>';
+            }
+        }
+        setTimeout(loadMemoryList, 2000);
+
+        async function searchMemory() {
+            const inp = document.getElementById('memory-search-input');
+            const q = inp.value.trim();
+            if(!q) {
+                loadMemoryList();
+                return;
+            }
+            const container = document.getElementById('memory-list-container');
+            container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Aranıyor...</div>';
+            try {
+                const res = await fetch('/api/memory/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: q})
+                });
+                const d = await res.json();
+                const results = d.results || [];
+                if(results.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Eşleşen anı bulunamadı.</div>';
+                    return;
+                }
+                let html = '';
+                for(const r of results) {
+                    const val = typeof r.value === 'object' && r.value.value !== undefined ? r.value.value : r.value;
+                    html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <div><b style="color:#00ffcc;">${r.key}:</b> <span style="color:#fff;">${val}</span> <span style="font-size:9px; color:var(--primary);">(%${Math.round(r.score * 100)} eşleşme)</span></div>
+                    </div>`;
+                }
+                container.innerHTML = html;
+            } catch(e) {
+                container.innerHTML = '<div style="color:var(--danger);">Arama hatası: ' + e + '</div>';
+            }
+        }
+
+        async function saveMemoryItem() {
+            const kInp = document.getElementById('memory-add-key');
+            const vInp = document.getElementById('memory-add-val');
+            const k = kInp.value.trim();
+            const v = vInp.value.trim();
+            if(!k || !v) {
+                alert("Lütfen anahtar ve değer belirtin.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/memory/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({category: 'notes', key: k, value: v})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    kInp.value = '';
+                    vInp.value = '';
+                    loadMemoryList();
+                    appendMsg('sys', '🧠 Hafızaya kaydedildi: ' + k);
+                } else {
+                    alert("Hata: " + d.message);
+                }
+            } catch(e) {
+                alert("İstek hatası: " + e);
+            }
+        }
+
+        async function deleteMemoryItem(cat, key) {
+            if(!confirm(`'${key}' bilgisini hafızadan silmek istiyor musunuz?`)) return;
+            try {
+                const res = await fetch('/api/memory/item', {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({category: cat, key: key})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    loadMemoryList();
+                    appendMsg('sys', '🗑️ Hafızadan silindi: ' + key);
+                } else {
+                    alert("Hata: " + d.message);
+                }
+            } catch(e) {
+                alert("Silme hatası: " + e);
             }
         }
 
@@ -1872,6 +2013,71 @@ async def post_discord_action(payload: dict = None):
             return JSONResponse(status_code=400, content={"status": "error", "message": "Efekt çalınamadı (ses odası bağlı olmalıdır)."})
 
         return JSONResponse(status_code=400, content={"status": "error", "message": f"Bilinmeyen eylem: {action}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── KALICI BELLEK VE SEMANTİK BAĞLAM (RULE 8 - ITEM 9) ──────────────────────
+
+@app.get("/api/memory/list")
+async def get_memory_list():
+    """Kalıcı hafızada kayıtlı tüm kategorileri ve bilgileri döndürür."""
+    try:
+        from memory.semantic_memory import get_semantic_memory
+        memories = get_semantic_memory().list_all_memories()
+        return {"status": "ok", "memories": memories}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/memory/search")
+async def post_memory_search(payload: dict = None):
+    """Sorgu ile semantik benzerlik gösteren anıları ve notları bulur."""
+    try:
+        query = (payload or {}).get("query", "").strip()
+        if not query:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Arama sorgusu belirtilmedi."})
+
+        from memory.semantic_memory import get_semantic_memory
+        results = get_semantic_memory().search_relevant_memories(query, top_k=6, threshold=0.10)
+        return {"status": "ok", "query": query, "results": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/memory/save")
+async def post_memory_save(payload: dict = None):
+    """Yeni bir kullanıcı bilgisini veya tercihini kalıcı hafızaya kaydeder."""
+    try:
+        cat = (payload or {}).get("category", "notes").strip()
+        key = (payload or {}).get("key", "").strip()
+        val = (payload or {}).get("value", "")
+        if not key:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Anahtar (key) belirtilmedi."})
+
+        from memory.semantic_memory import get_semantic_memory
+        ok, msg = get_semantic_memory().store_fact(cat, key, val)
+        if ok:
+            return {"status": "ok", "message": msg}
+        return JSONResponse(status_code=400, content={"status": "error", "message": msg})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.delete("/api/memory/item")
+async def delete_memory_item(payload: dict = None):
+    """Belirtilen hafıza kaydını siler."""
+    try:
+        cat = (payload or {}).get("category", "").strip()
+        key = (payload or {}).get("key", "").strip()
+        if not key:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Silinecek anahtar belirtilmedi."})
+
+        from memory.semantic_memory import get_semantic_memory
+        ok, msg = get_semantic_memory().delete_fact(cat, key)
+        if ok:
+            return {"status": "ok", "message": msg}
+        return JSONResponse(status_code=400, content={"status": "error", "message": msg})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

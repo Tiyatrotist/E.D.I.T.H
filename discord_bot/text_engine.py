@@ -182,7 +182,25 @@ class DiscordTextEngine:
                 if self.bot_instance and message_context:
                     self.bot_instance.channel_modes[message_context.channel.id] = mode
                     return f"Mod başarıyla '{mode}' olarak güncellendi."
-                return "Mod güncellendi."
+            # 10. KALICI VE SEMANTİK BELLEK (ITEM 9)
+            elif tool_name in ("remember_fact", "save_memory"):
+                cat = str(args.get("category") or "notes").strip()
+                k = str(args.get("key") or args.get("name") or "bilgi").strip()
+                val = args.get("value") if args.get("value") is not None else args.get("val", "")
+                from memory.semantic_memory import get_semantic_memory
+                ok, msg = await loop.run_in_executor(None, lambda: get_semantic_memory().store_fact(cat, k, val))
+                return msg
+
+            elif tool_name in ("recall_memory", "search_memory"):
+                q = str(args.get("query") or args.get("text") or "").strip()
+                from memory.semantic_memory import get_semantic_memory
+                mems = await loop.run_in_executor(None, lambda: get_semantic_memory().search_relevant_memories(q, top_k=4))
+                if mems:
+                    lines = [f"Hafızada {len(mems)} kayıt bulundu:"]
+                    for m in mems:
+                        lines.append(f"- [{m.get('category')}] {m.get('key')}: {m.get('value')}")
+                    return "\n".join(lines)
+                return "Hafızada bu konuyla ilgili bir kayıt bulunamadı."
 
             return f"Bilinmeyen araç: {tool_name}"
 
@@ -221,7 +239,14 @@ class DiscordTextEngine:
                 role_prefix = "Kullanıcı" if m["role"] == "user" else "EDITH"
                 context_lines.append(f"{role_prefix}: {m['content']}")
 
-            prompt = "\n".join(context_lines) + "\nEDITH:"
+            mem_ctx = ""
+            try:
+                from memory.semantic_memory import get_semantic_memory
+                mem_ctx = get_semantic_memory().format_context_for_prompt(user_message)
+            except Exception:
+                pass
+
+            prompt = (f"{mem_ctx}" if mem_ctx else "") + "\n".join(context_lines) + "\nEDITH:"
             raw_reply = await self.llm.generate_response(
                 prompt=prompt,
                 system_instruction=get_system_prompt(personality),

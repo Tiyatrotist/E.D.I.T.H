@@ -145,8 +145,9 @@ Kullanabileceğin araçlar:
 - set_dnd_mode(enabled): Rahatsız etme modunu (DND) aç veya kapat (enabled: true/false veya boş)
 - snooze_activity_alerts(minutes): Mola ve oyun hatırlatmalarını belirtilen dakika kadar ertele
 - get_morning_briefing(force): Günün sabah brifingini ve özetini sunar (hava durumu, donanım sağlığı, hatırlatıcılar, cevapsız aramalar)
-- save_memory(category, key, value): Hafızaya kaydet
-- delete_memory(category, key, match_text): Hafızadan sil
+- save_memory(category, key, value): Kalıcı hafızaya yeni bir bilgi, tercih veya not kaydet (remember_fact)
+- recall_memory(query): Hafızadaki bilgileri semantik olarak ara ve hatırla
+- delete_memory(category, key): Hafızadan belirtilen bilgiyi veya tercihi sil (forget_memory)
 
 Araç çağırmak için şu formatı kullan:
 TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
@@ -175,7 +176,9 @@ Available tools:
 - snooze_activity_alerts(minutes): Snooze break and activity reminders
 - get_morning_briefing(force): Executive morning briefing (weather, system telemetry, agenda, phone secretary calls)
 - analyze_screen(query): Analyze screen content
-- save_memory(category, key, value): Save memory
+- save_memory(category, key, value): Save fact, preference, or note into long-term memory
+- recall_memory(query): Search and recall facts from semantic memory
+- delete_memory(category, key): Delete fact from memory
 
 To call a tool, use:
 TOOL_CALL: {"tool": "tool_name", "args": {"parameter": "value"}}
@@ -663,6 +666,40 @@ class EdithLive:
                 )
                 result = md
 
+            # ── KALICI VE SEMANTİK BELLEK (ITEM 9) ───────────────────────────
+            elif name in ("remember_fact", "save_memory"):
+                cat = str(args.get("category") or "notes").strip()
+                k = str(args.get("key") or args.get("name") or "bilgi").strip()
+                val = args.get("value") if args.get("value") is not None else args.get("val", "")
+                from memory.semantic_memory import get_semantic_memory
+                ok, msg = await loop.run_in_executor(
+                    None, lambda: get_semantic_memory().store_fact(cat, k, val)
+                )
+                result = msg
+
+            elif name in ("recall_memory", "search_memory"):
+                q = str(args.get("query") or args.get("text") or "").strip()
+                from memory.semantic_memory import get_semantic_memory
+                mems = await loop.run_in_executor(
+                    None, lambda: get_semantic_memory().search_relevant_memories(q, top_k=4)
+                )
+                if mems:
+                    lines = [f"Hafızada {len(mems)} eşleşme bulundu:"]
+                    for m in mems:
+                        lines.append(f"- [{m.get('category')}] {m.get('key')}: {m.get('value')}")
+                    result = "\n".join(lines)
+                else:
+                    result = "Bu konuyla ilgili hafızada kayıtlı bir bilgi bulunamadı."
+
+            elif name in ("forget_memory", "delete_memory"):
+                cat = str(args.get("category") or "").strip()
+                k = str(args.get("key") or args.get("match_text") or "").strip()
+                from memory.semantic_memory import get_semantic_memory
+                ok, msg = await loop.run_in_executor(
+                    None, lambda: get_semantic_memory().delete_fact(cat, k)
+                )
+                result = msg
+
             # ── DİĞER KOMUTLAR ───────────────────────────────────────────────
             elif name == "shell_run":
                 r = await loop.run_in_executor(None, lambda: shell_run(args.get("command", "")))
@@ -787,9 +824,18 @@ class EdithLive:
                 else:
                     call_notes_ctx = "[GÜNCEL TELEFON ÇAĞRI NOTLARI]\nŞu an için kayıtlı herhangi bir cevapsız çağrı veya arama notu bulunmuyor. Kullanıcıya seni kimsenin aramadığını, arama notlarının temiz olduğunu doğrudan bildir.\n\n"
 
+            # ── SEMANTİK VE UZUN VADELİ BELLEK ENJEKSİYONU (ITEM 9) ──
+            mem_ctx = ""
+            try:
+                from memory.semantic_memory import get_semantic_memory
+                mem_ctx = get_semantic_memory().format_context_for_prompt(text)
+            except Exception as ex:
+                print(f"[Main] ⚠️ Semantik bellek hatası: {ex}")
+
             prompt_with_ctx = (
-                text if not (history_block or call_notes_ctx)
-                else f"{call_notes_ctx}[KISA DİYALOG GEÇMİŞİ]\n{history_block}\n\n[KULLANICI]\n{text}"
+                f"{mem_ctx}{call_notes_ctx}"
+                + (f"[KISA DİYALOG GEÇMİŞİ]\n{history_block}\n\n" if history_block else "")
+                + f"[KULLANICI]\n{text}"
             )
 
             if self._stop_requested.is_set():

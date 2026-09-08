@@ -782,9 +782,15 @@ class LLMPool:
             try:
                 provider = _create_provider(name, cfg)
                 self._providers[name] = provider
-                print(f"[LLMPool] ✅ {name} yüklendi (model={cfg.get('model', '?')})")
+                try:
+                    print(f"[LLMPool] ✅ {name} yüklendi (model={cfg.get('model', '?')})")
+                except Exception:
+                    print(f"[LLMPool] [+] {name} yuklendi (model={cfg.get('model', '?')})")
             except Exception as e:
-                print(f"[LLMPool] ❌ {name} yüklenemedi: {e}")
+                try:
+                    print(f"[LLMPool] ❌ {name} yüklenemedi: {e}")
+                except Exception:
+                    print(f"[LLMPool] [-] {name} yuklenemedi: {e}")
 
         print(
             f"[LLMPool] Aktif: {self._active_provider} | "
