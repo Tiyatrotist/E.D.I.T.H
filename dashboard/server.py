@@ -462,6 +462,22 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 <button class="ctrl-btn" onclick="launchApp('terminal')">⚡ Terminal</button>
             </div>
         </div>
+
+        <!-- Otonom Geliştirici (Dev Agent) Kartı (Rule 8) -->
+        <div class="card" style="border: 1px solid rgba(0, 212, 192, 0.4); background: linear-gradient(135deg, rgba(0, 212, 192, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>🧑‍💻 Otonom Geliştirici (Dev Agent)</span>
+                <span id="dev-agent-status-badge" style="font-size:10px; color:var(--primary);">Boşta</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Yazılım görevini tanımlayın; EDITH kodları yazsın, lint etsin, test etsin ve çalıştırsın.
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="dev-task-input" placeholder="Örn: Fibonacci hesaplayan CLI aracı yaz..." style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(0,212,192,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px;">
+                <button class="ctrl-btn" id="dev-agent-run-btn" style="border-color:var(--primary); font-weight:bold; white-space:nowrap;" onclick="triggerDevAgent()">🚀 Başlat</button>
+            </div>
+            <div id="dev-agent-log-box" style="display:none; margin-top:10px; padding:10px; background:rgba(0,0,0,0.6); border-radius:8px; font-size:11px; font-family:monospace; line-height:1.4; color:#00ffcc; max-height:220px; overflow-y:auto; white-space:pre-wrap;"></div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -851,6 +867,64 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 });
                 const d = await res.json();
                 appendMsg('sys', '🚀 ' + (d.result || appName + ' açılıyor...'));
+            } catch(e) {}
+        }
+
+        let devPollInterval = null;
+
+        async function triggerDevAgent() {
+            const inp = document.getElementById('dev-task-input');
+            const task = inp.value.trim();
+            if(!task) {
+                alert("Lütfen bir yazılım görevi belirtin.");
+                return;
+            }
+            inp.value = '';
+            const box = document.getElementById('dev-agent-log-box');
+            const badge = document.getElementById('dev-agent-status-badge');
+            box.style.display = 'block';
+            box.innerText = '🚀 Otonom ajan başlatılıyor...';
+            badge.innerText = 'Çalışıyor...';
+
+            try {
+                const res = await fetch('/api/dev/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({task: task})
+                });
+                const d = await res.json();
+                appendMsg('sys', '🧑‍💻 Dev Agent görevi başlattı: ' + task);
+
+                if(devPollInterval) clearInterval(devPollInterval);
+                devPollInterval = setInterval(pollDevAgentStatus, 2000);
+            } catch(e) {
+                box.innerText = 'Ajan başlatılamadı: ' + e;
+                badge.innerText = 'Hata';
+            }
+        }
+
+        async function pollDevAgentStatus() {
+            try {
+                const res = await fetch('/api/dev/status');
+                const d = await res.json();
+                const box = document.getElementById('dev-agent-log-box');
+                const badge = document.getElementById('dev-agent-status-badge');
+
+                badge.innerText = d.status ? d.status.toUpperCase() : 'BİLİNMİYOR';
+                if(d.logs && d.logs.length > 0) {
+                    box.innerText = d.logs.join('\n');
+                    box.scrollTop = box.scrollHeight;
+                }
+
+                if(d.status === 'completed' || d.status === 'failed') {
+                    if(devPollInterval) clearInterval(devPollInterval);
+                    devPollInterval = null;
+                    if(d.status === 'completed') {
+                        appendMsg('bot', '🎉 **Dev Agent Görevi Tamamlandı!**\nDosyalar: ' + (d.files_created || []).join(', '));
+                    } else {
+                        appendMsg('sys', '⚠️ Dev Agent tamamlanamadı: ' + (d.error || 'Bilinmeyen hata'));
+                    }
+                }
             } catch(e) {}
         }
 
@@ -1418,6 +1492,45 @@ async def post_briefing_trigger(payload: dict = None):
             "time": now_time,
             "markdown": md,
             "spoken": spoken,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── OTONOM GELİŞTİRİCİ & KOD AJANI (RULE 8) ──────────────────────────────────
+
+@app.get("/api/dev/status")
+async def get_dev_status_endpoint():
+    """Otonom dev ajanının canlı durumunu ve loglarını döner."""
+    try:
+        from actions.dev_agent import get_dev_agent_status
+        return get_dev_agent_status()
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/dev/run")
+async def post_dev_run_endpoint(payload: dict = None):
+    """Mobil panelden veya API'den otonom dev ajanını başlatır."""
+    try:
+        from actions.dev_agent import AutonomousDevAgent
+        task = (payload or {}).get("task", "").strip()
+        if not task:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Görev belirtilmedi."})
+
+        p_dir = (payload or {}).get("project_dir", "")
+        max_iters = int((payload or {}).get("max_iterations", 3) or 3)
+
+        import threading
+        def _run_worker():
+            agent = AutonomousDevAgent(project_dir=p_dir, max_iterations=max_iters)
+            agent.plan_and_execute(task)
+
+        threading.Thread(target=_run_worker, daemon=True).start()
+
+        return {
+            "status": "started",
+            "message": f"Dev Agent görevi başlatıldı: '{task}'",
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

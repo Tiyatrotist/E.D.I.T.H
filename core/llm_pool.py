@@ -741,7 +741,10 @@ class LLMPool:
         self._active_provider: str = "nim"
         self._fallback_chain: list[str] = ["nim", "mistral", "cohere", "gemini", "groq", "openrouter", "ollama"]
         self._initialized = False
-        print("[LLMPool] 🏗️ Pool oluşturuldu")
+        try:
+            print("[LLMPool] 🏗️ Pool oluşturuldu")
+        except Exception:
+            pass
 
     def load_config(self, full_config: dict) -> None:
         """Config dict'ten provider'ları yükle.

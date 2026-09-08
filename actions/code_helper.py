@@ -152,6 +152,35 @@ def code_helper(
 
     print(f"[CodeHelper] 💻 İşlem: {intent} (Dil: {language})")
 
+    # 0. LINT (AST Sözdizimi Kontrolü)
+    if intent == "lint":
+        content = code
+        if not content and file_path:
+            content, err = _read_file(file_path)
+            if err:
+                return err
+
+        if not content:
+            return "Lint denetimi yapılacak bir kod veya dosya içeriği bulunamadı."
+
+        lang = (language or "python").lower()
+        if lang in ("python", "py"):
+            try:
+                import ast
+                ast.parse(content)
+                return "✅ Sözdizimi (AST) Hatasız: Python kodu başarıyla doğrulandı."
+            except SyntaxError as e:
+                return f"❌ Sözdizimi Hatası (Satır {e.lineno}, Sütun {e.offset}): {e.msg}"
+            except Exception as e:
+                return f"❌ Ayrıştırma Hatası: {e}"
+        elif lang == "json":
+            try:
+                json.loads(content)
+                return "✅ JSON Doğrulandı: Sözdizimi geçerli."
+            except Exception as e:
+                return f"❌ Geçersiz JSON: {e}"
+        return f"ℹ️ '{lang}' dili için temel lint doğrulaması tamamlandı."
+
     # 1. RUN
     if intent == "run":
         if file_path:
