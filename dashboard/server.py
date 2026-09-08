@@ -495,6 +495,26 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
             </div>
             <div id="dev-agent-log-box" style="display:none; margin-top:10px; padding:10px; background:rgba(0,0,0,0.6); border-radius:8px; font-size:11px; font-family:monospace; line-height:1.4; color:#00ffcc; max-height:220px; overflow-y:auto; white-space:pre-wrap;"></div>
         </div>
+
+        <!-- Discord Canlı Ses & Topluluk Köprüsü (Rule 8) -->
+        <div class="card" style="border: 1px solid rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>🎧 Discord Canlı Ses Köprüsü</span>
+                <span id="discord-status-badge" style="font-size:10px; color:#8b5cf6;">Kontrol Ediliyor...</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Discord ses odasında holografik kadın sesiyle duyuru yapın veya bot eylemlerini yönetin.
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="discord-speak-input" placeholder="Ses odasında söylenecek mesaj..." style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(139,92,246,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px;">
+                <button class="ctrl-btn" id="discord-speak-btn" style="border-color:#8b5cf6; font-weight:bold; white-space:nowrap;" onclick="triggerDiscordSpeak()">🗣️ Konuş</button>
+            </div>
+            <div class="ctrl-grid">
+                <button class="ctrl-btn" onclick="triggerDiscordAction('sound', 'chime')">🔔 Stark Chime Çal</button>
+                <button class="ctrl-btn" onclick="triggerDiscordAction('leave')">📴 Odadan Ayrıl</button>
+            </div>
+            <div id="discord-result-box" style="display:none; margin-top:10px; padding:8px; background:rgba(0,0,0,0.6); border-radius:6px; font-size:11px; color:#cbfbf8;"></div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -1014,6 +1034,80 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                     }
                 }
             } catch(e) {}
+        }
+
+        async function fetchDiscordStatus() {
+            try {
+                const res = await fetch('/api/discord/status');
+                const d = await res.json();
+                const badge = document.getElementById('discord-status-badge');
+                if(!badge) return;
+                if(d.online && d.voice && d.voice.connected) {
+                    badge.innerText = '🎙️ Ses Bağlı (' + (d.voice.channel_name || 'Aktif') + ')';
+                    badge.style.color = '#10B981';
+                } else if(d.online) {
+                    badge.innerText = '🟢 Çevrimiçi (' + (d.bot_user || 'Bot') + ')';
+                    badge.style.color = '#00d4c0';
+                } else {
+                    badge.innerText = '⚪ Çevrimdışı';
+                    badge.style.color = 'var(--text-dim)';
+                }
+            } catch(e) {}
+        }
+        setInterval(fetchDiscordStatus, 5000);
+        setTimeout(fetchDiscordStatus, 1500);
+
+        async function triggerDiscordSpeak() {
+            const inp = document.getElementById('discord-speak-input');
+            const text = inp.value.trim();
+            if(!text) {
+                alert("Lütfen ses odasında konuşulacak bir mesaj yazın.");
+                return;
+            }
+            inp.value = '';
+            const box = document.getElementById('discord-result-box');
+            box.style.display = 'block';
+            box.innerText = '🗣️ Ses sentezleniyor ve Discord ses odasına gönderiliyor...';
+
+            try {
+                const res = await fetch('/api/discord/speak', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: text})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    box.innerText = '✅ ' + d.message;
+                    appendMsg('sys', '🎧 Discord: ' + text);
+                } else {
+                    box.innerText = '❌ ' + (d.message || 'Hata oluştu.');
+                }
+            } catch(e) {
+                box.innerText = 'Bağlantı hatası: ' + e;
+            }
+        }
+
+        async function triggerDiscordAction(action, param) {
+            const box = document.getElementById('discord-result-box');
+            box.style.display = 'block';
+            box.innerText = 'İşlem yürütülüyor...';
+
+            try {
+                const res = await fetch('/api/discord/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: action, param: param || ''})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    box.innerText = '✅ ' + d.message;
+                    fetchDiscordStatus();
+                } else {
+                    box.innerText = '❌ ' + (d.message || 'İşlem başarısız.');
+                }
+            } catch(e) {
+                box.innerText = 'Hata: ' + e;
+            }
         }
 
         async function fetchStats() {
@@ -1690,6 +1784,94 @@ async def post_browser_research(payload: dict = None):
 
         report = deep_web_research(query)
         return {"status": "ok", "report": report}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── DISCORD CANLI SES VE TOPLULUK KÖPRÜSÜ (RULE 8) ──────────────────────────
+
+@app.get("/api/discord/status")
+async def get_discord_status():
+    """Discord Bot ve ses motoru durumunu döndürür."""
+    try:
+        from discord_bot.bot import get_discord_bot
+        from app_config import load_app_config
+        cfg = load_app_config().get("discord", {})
+        bot_inst = get_discord_bot()
+
+        if not bot_inst or not hasattr(bot_inst, "bot"):
+            return {
+                "status": "ok",
+                "enabled": cfg.get("enabled", False),
+                "running": False,
+                "online": False,
+                "bot_user": None,
+                "guilds": [],
+                "voice": {"connected": False, "speaking": False},
+                "primary_voice": cfg.get("tts_voice", "tr-TR-EmelNeural"),
+            }
+
+        is_ready = bool(bot_inst.bot and bot_inst.bot.is_ready())
+        voice_st = bot_inst.voice_engine.get_voice_status() if hasattr(bot_inst, "voice_engine") else {}
+        guild_names = [g.name for g in bot_inst.bot.guilds] if (bot_inst.bot and bot_inst.bot.guilds) else []
+
+        return {
+            "status": "ok",
+            "enabled": cfg.get("enabled", False),
+            "running": True,
+            "online": is_ready,
+            "bot_user": str(bot_inst.bot.user) if (bot_inst.bot and bot_inst.bot.user) else None,
+            "guilds": guild_names,
+            "voice": voice_st,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/discord/speak")
+async def post_discord_speak(payload: dict = None):
+    """Mobil panelden girilen metni Discord ses kanalında holografik sesle konuşur."""
+    try:
+        text = (payload or {}).get("text", "").strip()
+        if not text:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Konuşulacak metin belirtilmedi."})
+
+        from discord_bot.bot import get_discord_bot
+        bot_inst = get_discord_bot()
+        if not bot_inst or not bot_inst.voice_engine or not bot_inst.voice_engine.is_connected:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Bot herhangi bir Discord ses kanalına bağlı değil."})
+
+        ok = await bot_inst.voice_engine.speak_text(text)
+        if ok:
+            return {"status": "ok", "message": f"Sesli odada konuşuldu: '{text}'"}
+        return JSONResponse(status_code=500, content={"status": "error", "message": "Ses sentezlenemedi veya çalınamadı."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/discord/action")
+async def post_discord_action(payload: dict = None):
+    """Discord bot eylemlerini (leave, sound, mode) uzaktan yönetir."""
+    try:
+        action = (payload or {}).get("action", "").lower().strip()
+        param = (payload or {}).get("param", "").strip()
+
+        from discord_bot.bot import get_discord_bot
+        bot_inst = get_discord_bot()
+        if not bot_inst:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Discord botu aktif değil."})
+
+        if action == "leave":
+            await bot_inst.voice_engine.leave_channel()
+            return {"status": "ok", "message": "Ses kanalından ayrılındı."}
+
+        elif action in ("sound", "play_sound"):
+            ok = await bot_inst.voice_engine.play_sound_effect(param or "chime")
+            if ok:
+                return {"status": "ok", "message": f"'{param or 'chime'}' efekti çalındı."}
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Efekt çalınamadı (ses odası bağlı olmalıdır)."})
+
+        return JSONResponse(status_code=400, content={"status": "error", "message": f"Bilinmeyen eylem: {action}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

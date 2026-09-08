@@ -1022,10 +1022,14 @@ class EdithLive:
                 except Exception as e:
                     print(f"[Main] ℹ️ SIP Bridge başlatma notu: {e}")
 
-            # 4. Discord Bot (İstemcide çift token çakışmasını önlemek için sadece server rolünde)
+            # 4. Discord Bot (Yapılandırmada enabled ise arka planda başlat)
             discord_cfg = cfg.get("discord", {})
-            if role == "server" and discord_cfg.get("enabled", False):
-                start_discord_bot_background()
+            if discord_cfg.get("enabled", False):
+                try:
+                    from discord_bot.bot import start_discord_bot_background
+                    start_discord_bot_background()
+                except Exception as e:
+                    print(f"[Main] ℹ️ Discord Bot başlatma notu: {e}")
 
             # 5. Canlı Etkinlik Takipçisini Başlat (Living Companion Tracker)
             self.activity_tracker.start()

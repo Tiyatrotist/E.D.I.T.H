@@ -95,7 +95,67 @@ class DiscordTextEngine:
                 r = await loop.run_in_executor(None, format_system_status)
                 return r or "Sistem durumu bilgisi alındı."
 
-            # 3. SESLİ KANAL İŞLEMLERİ
+            # 3. GÖRSEL ZEKA & EKRAN ANALİZİ
+            elif tool_name in ("screen_vision", "analyze_screen", "ekran_analiz"):
+                prompt = args.get("prompt") or args.get("soru") or "Ekranda açık olan içeriği analiz et ve özetle."
+                try:
+                    from actions.screen_vision import capture_active_screen_or_window, analyze_screen_with_ai
+                    img_bytes = await loop.run_in_executor(None, capture_active_screen_or_window)
+                    if not img_bytes:
+                        return "Ekran görüntüsü yakalanamadı."
+                    analysis = await loop.run_in_executor(
+                        None, lambda: analyze_screen_with_ai(img_bytes, prompt=prompt)
+                    )
+                    return f"Ekran Görsel Analiz Raporu:\n{analysis}"
+                except Exception as ex:
+                    return f"Ekran analizi yapılamadı: {ex}"
+
+            # 4. SABAH BRİFİNGİ
+            elif tool_name in ("morning_briefing", "briefing", "sabah_brifingi"):
+                try:
+                    from actions.morning_briefing import generate_morning_briefing
+                    b_data = await loop.run_in_executor(None, generate_morning_briefing)
+                    return b_data.get("text_summary", "Brifing verisi oluşturulamadı.")
+                except Exception as ex:
+                    return f"Sabah brifingi alınamadı: {ex}"
+
+            # 5. ETKİNLİK VE YAŞAM REFAKATÇİSİ DURUMU
+            elif tool_name in ("activity_status", "etkinlik_durumu", "work_status"):
+                try:
+                    from actions.activity_supervisor import get_activity_supervisor
+                    sup = get_activity_supervisor()
+                    st = sup.get_status()
+                    return (
+                        f"Refakatçi Durumu: Aktif Uygulama: {st.get('active_app')}, "
+                        f"Oturum: {st.get('session_duration_minutes')} dk, "
+                        f"Çalışma: {st.get('work_duration_minutes')} dk, "
+                        f"Oyun: {st.get('gaming_duration_minutes')} dk"
+                    )
+                except Exception as ex:
+                    return f"Etkinlik durumu alınamadı: {ex}"
+
+            # 6. OTONOM SAYFA OKUMA
+            elif tool_name in ("browse_page", "scrape_page", "sayfa_oku"):
+                url = args.get("url") or args.get("link") or ""
+                if not url:
+                    return "Okunacak bir URL belirtilmedi."
+                try:
+                    from actions.browser import scrape_and_clean_page
+                    md = await loop.run_in_executor(None, lambda: scrape_and_clean_page(url, max_chars=3000))
+                    return f"Web Sayfası İçeriği ({url}):\n{md}"
+                except Exception as ex:
+                    return f"Sayfa okunamadı: {ex}"
+
+            # 7. HATIRLATICILAR
+            elif tool_name in ("list_reminders", "get_reminders", "hatirlaticilar"):
+                try:
+                    from actions.reminders import get_reminders
+                    r = await loop.run_in_executor(None, get_reminders)
+                    return r or "Kayıtlı aktif hatırlatıcınız bulunmuyor."
+                except Exception as ex:
+                    return f"Hatırlatıcılar alınamadı: {ex}"
+
+            # 8. SESLİ KANAL İŞLEMLERİ
             elif tool_name == "join_voice":
                 if self.bot_instance and message_context and message_context.author.voice:
                     ch = message_context.author.voice.channel
@@ -116,7 +176,7 @@ class DiscordTextEngine:
                     return f"Sesli odada konuşuldu: '{text}'"
                 return "Seslendirilecek metin bulunamadı."
 
-            # 4. MOD GEÇİŞİ
+            # 9. MOD GEÇİŞİ
             elif tool_name == "set_mode":
                 mode = args.get("mode", "natural")
                 if self.bot_instance and message_context:

@@ -51,9 +51,14 @@ DISCORD_AGENT_TOOLS = """
 Kullanıcının doğrudan bir eylem veya güncel veri istediği durumlarda şu araçları çağırabilirsin:
 - web_search(query): İnternette canlı arama yapar (hava durumu, haberler, maç sonuçları, güncel bilgi).
 - get_system_status(): Sunucu telemetrisini ve donanım durumunu (CPU, RAM, Disk) kontrol eder.
+- screen_vision(prompt): Bilgisayar ekranını anlık olarak inceler ve açık uygulamalar/hata pencereleri hakkında bilgi verir.
+- morning_briefing(): Günlük yönetici sabah brifingini (hava, donanım, hatırlatıcılar) getirir.
+- activity_status(): PC kullanım süresini ve çalışma/oyun refakatçi durumunu sorgular.
+- browse_page(url): Verilen bir web sayfasını otonom olarak okuyup özetler.
+- list_reminders(): Kayıtlı hatırlatıcıları ve görevleri listeler.
 - join_voice(): Kullanıcının sesli odasına katılır.
 - leave_voice(): Sesli odadan ayrılır.
-- speak_voice(text): Sesli odada Piper kadın sesiyle konuşur.
+- speak_voice(text): Sesli odada holografik kadın sesiyle konuşur.
 - set_mode(mode): Modu 'nizami' veya 'natural' yapar.
 
 Format:

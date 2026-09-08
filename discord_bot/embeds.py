@@ -9,7 +9,7 @@ zengin ve yüksek teknolojili arayüz kartları (Embeds).
 from __future__ import annotations
 
 import discord
-from typing import Optional
+from typing import Optional, Dict, Any
 
 # Stark Industries / EDITH Renk Teması
 COLOR_CYAN = 0x00E5FF       # Taktiksel HUD Camgöbeği (Aktif/Başarılı)
@@ -17,6 +17,7 @@ COLOR_SUCCESS = 0x10B981    # Zümrüt Yeşili (Normal/Onay)
 COLOR_MILITARY = 0x3B82F6   # Donanma / Askeri Mavi (Nizami Mod)
 COLOR_WARN = 0xF59E0B       # Kehribar (Uyarı)
 COLOR_DANGER = 0xEF4444     # Kırmızı (Hata/Kritik)
+COLOR_PURPLE = 0x8B5CF6     # Fütüristik Mor (Görsel Zeka / Vision)
 
 FOOTER_TEXT = "E.D.I.T.H // Tactical Intelligence Network • Stark Industries"
 
@@ -29,7 +30,7 @@ def create_base_embed(
 ) -> discord.Embed:
     """Tüm E.D.I.T.H mesajları için standart yüksek teknoloji embed şablonu."""
     embed = discord.Embed(title=title, description=description, color=color)
-    if bot_user and bot_user.display_avatar:
+    if bot_user and hasattr(bot_user, "display_avatar") and bot_user.display_avatar:
         embed.set_author(name="E.D.I.T.H — Taktiksel Asistan", icon_url=bot_user.display_avatar.url)
     else:
         embed.set_author(name="E.D.I.T.H — Taktiksel Asistan")
@@ -66,10 +67,10 @@ def status_embed(
     )
 
     embed.add_field(
-        name="🧠 Yapay Zeka Havuzu",
-        value="**Model:** Gemini 3.6 Flash\n"
-              "**Yedekler:** Groq, NIM, Mistral\n"
-              "**TTS:** Piper Neural (Kadın Sesi)",
+        name="🧠 Yapay Zeka & Ses Havuzu",
+        value="**Model:** Gemini 3.6 Flash / Local Hybrid\n"
+              "**Yedekler:** Groq, NIM, Mistral, Ollama\n"
+              "**TTS:** Holografik EmelNeural (Warmth+Reverb)",
         inline=True,
     )
 
@@ -89,7 +90,7 @@ def voice_embed(action: str, channel_name: str = "", text: str = "", bot_user=No
     if action == "join":
         embed = create_base_embed(
             title="🎙️ Ses Bağlantısı Aktif",
-            description=f"**`{channel_name}`** ses kanalına katıldım. Dinliyorum, bir isteğin olursa buradayım.",
+            description=f"**`{channel_name}`** ses kanalına katıldım. Holografik ses filtresi aktif, dinliyorum efendim.",
             color=COLOR_SUCCESS,
             bot_user=bot_user,
         )
@@ -102,7 +103,7 @@ def voice_embed(action: str, channel_name: str = "", text: str = "", bot_user=No
         )
     elif action == "speak":
         embed = create_base_embed(
-            title="🗣️ Sesli İfade İletildi",
+            title="🗣️ Holografik Sesli İfade İletildi",
             description=f"*{text}*",
             color=COLOR_CYAN,
             bot_user=bot_user,
@@ -142,8 +143,95 @@ def search_embed(query: str, result: str, bot_user=None) -> discord.Embed:
     return embed
 
 
+def briefing_embed(data: Dict[str, Any], bot_user=None) -> discord.Embed:
+    """Sabah Brifingi ve Günlük Yönetici Özeti kartı."""
+    embed = create_base_embed(
+        title="☕ STARK EXECUTIVE SABAH BRİFİNGİ",
+        description=data.get("greeting", "Günaydın efendim. Günlük operasyonel durum özetiniz hazır:"),
+        color=COLOR_CYAN,
+        bot_user=bot_user,
+    )
+
+    weather = data.get("weather", {})
+    w_text = f"{weather.get('condition', 'Bilinmiyor')}, `{weather.get('temp_c', '?')}°C` (Hissedilen: `{weather.get('feelslike_c', '?')}°C`)"
+    embed.add_field(name="🌤️ Yerel Hava Durumu", value=w_text, inline=True)
+
+    sys_info = data.get("system", {})
+    s_text = f"CPU: `%{sys_info.get('cpu_percent', 0)}` | RAM: `%{sys_info.get('ram_percent', 0)}` | Disk: `%{sys_info.get('disk_percent', 0)}`"
+    embed.add_field(name="📊 Sistem Sağlığı", value=s_text, inline=True)
+
+    reminders = data.get("reminders", [])
+    r_text = f"**{len(reminders)}** adet aktif görev ve hatırlatıcı."
+    embed.add_field(name="⏰ Hatırlatıcılar", value=r_text, inline=False)
+
+    calls = data.get("recent_calls", [])
+    c_text = f"Son 24 saatte **{len(calls)}** adet GSM sekreter çağrısı işlendi."
+    embed.add_field(name="📞 Çağrı Özeti", value=c_text, inline=False)
+
+    return embed
+
+
+def vision_embed(prompt: str, analysis: str, bot_user=None) -> discord.Embed:
+    """Görsel zeka ve ekran analizi kartı."""
+    embed = create_base_embed(
+        title="👁️ STARK GÖRSEL ZEKA & EKRAN ANALİZİ",
+        description=analysis[:2000] if analysis else "Analiz oluşturulamadı.",
+        color=COLOR_PURPLE,
+        bot_user=bot_user,
+    )
+    if prompt:
+        embed.add_field(name="🎯 Odak / Soru", value=prompt[:250], inline=False)
+    return embed
+
+
+def activity_embed(status_data: Dict[str, Any], bot_user=None) -> discord.Embed:
+    """PC Canlı Refakatçi ve Etkinlik Takip kartı."""
+    embed = create_base_embed(
+        title="🛡️ PC & YAŞAM REFAKATÇİSİ TELEMETRİSİ",
+        description="Bilgisayar oturumunuz ve sağlık durumunuz arka planda gözetleniyor.",
+        color=COLOR_CYAN,
+        bot_user=bot_user,
+    )
+
+    app_name = status_data.get("active_app", "Bilinmiyor")
+    cat = status_data.get("category", "WORK")
+    embed.add_field(name="💻 Aktif Pencere & Tür", value=f"`{app_name}` ({cat})", inline=True)
+
+    sess = status_data.get("session_duration_minutes", 0)
+    work = status_data.get("work_duration_minutes", 0)
+    game = status_data.get("gaming_duration_minutes", 0)
+    embed.add_field(name="⏱️ Süreler", value=f"Oturum: `{sess} dk`\nÇalışma: `{work} dk`\nOyun: `{game} dk`", inline=True)
+
+    dnd = "🔔 Açık (Rahatsız Etmeyin)" if status_data.get("dnd_active") else "🔕 Kapalı (Normal)"
+    embed.add_field(name="🛡️ DND Modu", value=dnd, inline=False)
+
+    return embed
+
+
+def browse_embed(url: str, content: str, bot_user=None) -> discord.Embed:
+    """Otonom web okuma ve özet kartı."""
+    embed = create_base_embed(
+        title=f"🌐 Otonom Web İncelemesi: {url[:45]}",
+        description=content[:2000] if content else "İçerik bulunamadı.",
+        color=COLOR_CYAN,
+        bot_user=bot_user,
+    )
+    return embed
+
+
+def reminders_embed(reminders_text: str, bot_user=None) -> discord.Embed:
+    """Hatırlatıcılar ve görevler listesi kartı."""
+    embed = create_base_embed(
+        title="⏰ GÖREVLER VE HATIRLATICILAR",
+        description=reminders_text[:2000] if reminders_text else "Aktif hatırlatıcınız bulunmuyor.",
+        color=COLOR_SUCCESS,
+        bot_user=bot_user,
+    )
+    return embed
+
+
 def help_embed(bot_user=None) -> discord.Embed:
-    """Komut rehberi kartı."""
+    """Kapsamlı E.D.I.T.H komut rehberi kartı."""
     embed = create_base_embed(
         title="⚡ E.D.I.T.H Komut ve Kontrol Merkezi",
         description="Aşağıdaki komutları doğrudan `/` ile veya sohbette doğal dille kullanabilirsiniz:",
@@ -152,10 +240,21 @@ def help_embed(bot_user=None) -> discord.Embed:
     )
 
     embed.add_field(
-        name="🎙️ Sesli İletişim",
+        name="🎙️ Sesli İletişim & Holografik Motor",
         value="`/join` — Bulunduğunuz ses odasına katılır\n"
               "`/leave` — Ses odasından ayrılır\n"
-              "`/speak <metin>` — Doğal kadın sesiyle kanalda konuşur",
+              "`/speak <metin>` — Holografik kadın sesiyle kanalda konuşur\n"
+              "`/sound [chime/alert]` — Taktiksel ses efekti çalar",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="☕ Yönetici & Refakatçi Süper Güçleri",
+        value="`/briefing` — Günlük hava, sistem ve çağrı sabah brifingi\n"
+              "`/vision [soru]` — Bilgisayar ekranını AI ile analiz eder\n"
+              "`/activity` — PC oturum süresi ve çalışma/oyun durumu\n"
+              "`/browse <url>` — Web sayfasını reklamsız okur ve özetler\n"
+              "`/reminders` — Bugünkü hatırlatıcıları listeler",
         inline=False,
     )
 
@@ -167,7 +266,7 @@ def help_embed(bot_user=None) -> discord.Embed:
     )
 
     embed.add_field(
-        name="🛰️ Taktiksel Araçlar",
+        name="🛰️ Taktiksel Araçlar (Yönetici İzinli)",
         value="`/status` — Sunucu yükü ve donanım telemetrisi\n"
               "`/search <sorgu>` — İnternette anlık küresel arama\n"
               "`/screen` — Bilgisayarın anlık ekran görüntüsü",

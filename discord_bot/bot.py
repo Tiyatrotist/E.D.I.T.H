@@ -24,14 +24,19 @@ except ImportError:
     HAS_DISCORD = False
 
 from app_config import load_app_config
-from discord_bot.command_router import handle_system_command
+from discord_bot.command_router import handle_system_command, is_user_authorized
 from discord_bot.embeds import (
+    activity_embed,
+    briefing_embed,
+    browse_embed,
     help_embed,
     mode_embed,
     phone_call_embed,
+    reminders_embed,
     search_embed,
     status_embed,
     triple_mode_embed,
+    vision_embed,
     voice_embed,
 )
 from discord_bot.personality import calculate_typing_delay
@@ -84,13 +89,81 @@ class EdithDiscordBot:
             emb = voice_embed("leave", bot_user=self.bot.user)
             await interaction.response.send_message(embed=emb)
 
-        @tree.command(name="speak", description="Piper kadın sesiyle sesli odada konuşur")
+        @tree.command(name="speak", description="Holografik kadın sesiyle sesli odada konuşur")
         @app_commands.describe(metin="Seslendirilecek metin")
         async def slash_speak(interaction: discord.Interaction, metin: str):
             await interaction.response.defer()
             await self.voice_engine.speak_text(metin)
             emb = voice_embed("speak", text=metin, bot_user=self.bot.user)
             await interaction.followup.send(embed=emb)
+
+        @tree.command(name="sound", description="Ses odasında taktiksel Stark ses efekti çalar")
+        @app_commands.describe(efekt="Ses efekti türü (chime, alert, notification)")
+        async def slash_sound(interaction: discord.Interaction, efekt: str = "chime"):
+            ok = await self.voice_engine.play_sound_effect(efekt)
+            if ok:
+                await interaction.response.send_message(f"🔔 Ses odasında '{efekt}' efekti çalındı.")
+            else:
+                await interaction.response.send_message("Ses efekti çalınamadı (bot bir ses odasında olmalıdır).", ephemeral=True)
+
+        @tree.command(name="briefing", description="Günlük hava, sistem ve çağrı sabah brifingini sunar")
+        async def slash_briefing(interaction: discord.Interaction):
+            await interaction.response.defer()
+            try:
+                from actions.morning_briefing import generate_morning_briefing
+                b_data = generate_morning_briefing()
+                emb = briefing_embed(b_data, bot_user=self.bot.user)
+                await interaction.followup.send(embed=emb)
+            except Exception as ex:
+                await interaction.followup.send(f"Brifing alınamadı: {ex}")
+
+        @tree.command(name="vision", description="Bilgisayar ekranını yakalayıp yapay zeka ile analiz eder")
+        @app_commands.describe(soru="Ekranda neye odaklanılmasını istersiniz?")
+        async def slash_vision(interaction: discord.Interaction, soru: str = "Ekranda açık olan içeriği analiz et."):
+            uid = interaction.user.id if interaction.user else None
+            if not is_user_authorized(uid):
+                await interaction.response.send_message("⚠️ Bu taktiksel komut için Stark Industries yönetici yetkisi gereklidir.", ephemeral=True)
+                return
+            await interaction.response.defer()
+            rep, file_bytes = handle_system_command("vision", args=soru, user_id=uid)
+            if file_bytes:
+                d_file = discord.File(io.BytesIO(file_bytes), filename="screen.png")
+                emb = vision_embed(soru, rep.replace("👁️ **Stark Ekran Görsel Analizi:**\n\n", ""), bot_user=self.bot.user)
+                await interaction.followup.send(embed=emb, file=d_file)
+            else:
+                await interaction.followup.send(rep)
+
+        @tree.command(name="activity", description="PC refakatçisi: çalışma süresi, aktif pencere ve mola durumu")
+        async def slash_activity(interaction: discord.Interaction):
+            try:
+                from actions.activity_supervisor import get_activity_supervisor
+                st = get_activity_supervisor().get_status()
+                emb = activity_embed(st, bot_user=self.bot.user)
+                await interaction.response.send_message(embed=emb)
+            except Exception as ex:
+                await interaction.response.send_message(f"Etkinlik durumu alınamadı: {ex}")
+
+        @tree.command(name="browse", description="Verilen web sayfasını reklamsız okur ve temiz özet çıkarır")
+        @app_commands.describe(url="İncelenecek web adresi (http...)")
+        async def slash_browse(interaction: discord.Interaction, url: str):
+            await interaction.response.defer()
+            try:
+                from actions.browser import scrape_and_clean_page
+                md = scrape_and_clean_page(url, max_chars=2500)
+                emb = browse_embed(url, md, bot_user=self.bot.user)
+                await interaction.followup.send(embed=emb)
+            except Exception as ex:
+                await interaction.followup.send(f"Sayfa okunamadı: {ex}")
+
+        @tree.command(name="reminders", description="Bugünkü kayıtlı hatırlatıcıları ve görevleri listeler")
+        async def slash_reminders(interaction: discord.Interaction):
+            try:
+                from actions.reminders import get_reminders
+                r_text = get_reminders()
+                emb = reminders_embed(r_text, bot_user=self.bot.user)
+                await interaction.response.send_message(embed=emb)
+            except Exception as ex:
+                await interaction.response.send_message(f"Hatırlatıcılar alınamadı: {ex}")
 
         @tree.command(name="nizami", description="Nizami askeri disiplin modunu açar veya kapatır")
         @app_commands.describe(mod="aç veya kapat")
@@ -119,14 +192,18 @@ class EdithDiscordBot:
         @app_commands.describe(sorgu="Aranacak konu")
         async def slash_search(interaction: discord.Interaction, sorgu: str):
             await interaction.response.defer()
-            rep, _ = handle_system_command("search", sorgu)
+            rep, _ = handle_system_command("search", sorgu, user_id=interaction.user.id if interaction.user else None)
             emb = search_embed(sorgu, rep, bot_user=self.bot.user)
             await interaction.followup.send(embed=emb)
 
         @tree.command(name="screen", description="Bilgisayarın anlık ekran görüntüsünü alır")
         async def slash_screen(interaction: discord.Interaction):
+            uid = interaction.user.id if interaction.user else None
+            if not is_user_authorized(uid):
+                await interaction.response.send_message("⚠️ Bu taktiksel komut için Stark Industries yönetici yetkisi gereklidir.", ephemeral=True)
+                return
             await interaction.response.defer()
-            rep, file_bytes = handle_system_command("screen")
+            rep, file_bytes = handle_system_command("screen", user_id=uid)
             if file_bytes:
                 d_file = discord.File(io.BytesIO(file_bytes), filename="screen.png")
                 await interaction.followup.send(content=rep, file=d_file)
@@ -241,16 +318,71 @@ class EdithDiscordBot:
 
                 if cmd == "search":
                     if args:
-                        rep, _ = handle_system_command("search", args)
+                        rep, _ = handle_system_command("search", args, user_id=message.author.id)
                         emb = search_embed(args, rep, bot_user=self.bot.user)
                         await message.channel.send(embed=emb)
                     return
 
+                if cmd in ("briefing", "brifing", "sabah"):
+                    try:
+                        from actions.morning_briefing import generate_morning_briefing
+                        b_data = generate_morning_briefing()
+                        emb = briefing_embed(b_data, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    except Exception as ex:
+                        await message.channel.send(f"Brifing alınamadı: {ex}")
+                    return
+
+                if cmd in ("activity", "etkinlik", "refakatci"):
+                    try:
+                        from actions.activity_supervisor import get_activity_supervisor
+                        st = get_activity_supervisor().get_status()
+                        emb = activity_embed(st, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    except Exception as ex:
+                        await message.channel.send(f"Etkinlik durumu alınamadı: {ex}")
+                    return
+
+                if cmd in ("browse", "oku", "web"):
+                    if not args:
+                        await message.channel.send("İncelenecek web adresini belirt: `!browse <url>`")
+                        return
+                    try:
+                        from actions.browser import scrape_and_clean_page
+                        md = scrape_and_clean_page(args, max_chars=2500)
+                        emb = browse_embed(args, md, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    except Exception as ex:
+                        await message.channel.send(f"Sayfa okunamadı: {ex}")
+                    return
+
+                if cmd in ("reminders", "hatirlatici", "gorevler"):
+                    try:
+                        from actions.reminders import get_reminders
+                        r_text = get_reminders()
+                        emb = reminders_embed(r_text, bot_user=self.bot.user)
+                        await message.channel.send(embed=emb)
+                    except Exception as ex:
+                        await message.channel.send(f"Hatırlatıcılar alınamadı: {ex}")
+                    return
+
+                if cmd in ("sound", "ses_efekti"):
+                    ok = await self.voice_engine.play_sound_effect(args or "chime")
+                    if ok:
+                        await message.channel.send(f"🔔 Ses odasında '{args or 'chime'}' efekti çalındı.")
+                    else:
+                        await message.channel.send("Ses efekti çalınamadı (bot bir ses odasında olmalıdır).")
+                    return
+
                 # Diğer sistem komutları
-                reply_text, file_bytes = handle_system_command(cmd, args)
+                reply_text, file_bytes = handle_system_command(cmd, args, user_id=message.author.id)
                 if file_bytes:
                     discord_file = discord.File(io.BytesIO(file_bytes), filename="screen.png")
-                    await message.channel.send(content=reply_text, file=discord_file)
+                    if cmd in ("vision", "ekran_analiz"):
+                        emb = vision_embed(args, reply_text.replace("👁️ **Stark Ekran Görsel Analizi:**\n\n", ""), bot_user=self.bot.user)
+                        await message.channel.send(embed=emb, file=discord_file)
+                    else:
+                        await message.channel.send(content=reply_text, file=discord_file)
                 elif reply_text:
                     await message.channel.send(reply_text)
                 return
