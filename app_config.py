@@ -204,6 +204,17 @@ DEFAULT_CONFIG = {
     "ui_compact_height": 200,
     "ui_compact_margin": 14,
     "language": "tr",
+    # Ses & Holografik Akustik Ayarları (Voice Studio):
+    "voice_primary": "tr-TR-EmelNeural",
+    "voice_effects_enabled": True,
+    "voice_rate": "-3%",
+    "voice_rate_int": -3,
+    "voice_pitch": "+2Hz",
+    "voice_pitch_int": 2,
+    "voice_warmth": 0.45,
+    "voice_spatial": 0.12,
+    "voice_gain": 1.05,
+
 }
 
 

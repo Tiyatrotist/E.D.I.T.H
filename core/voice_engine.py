@@ -35,6 +35,31 @@ if sys.platform == "win32":
 from app_config import get_app_config_value, load_app_config
 from core.audio_processor import process_voice_audio
 
+
+def _convert_audio_file(src_path: str, dst_path: str, dst_format: str = "wav") -> bool:
+    """Ses dosyasını pydub veya ffmpeg ile dönüştürür (örn. MP3 <-> WAV)."""
+    try:
+        from pydub import AudioSegment
+        sound = AudioSegment.from_file(src_path)
+        sound.export(dst_path, format=dst_format)
+        return os.path.exists(dst_path) and os.path.getsize(dst_path) > 100
+    except Exception:
+        pass
+
+    # FFmpeg fallback
+    try:
+        import subprocess
+        cmd = ["ffmpeg", "-y", "-i", src_path]
+        if dst_format == "wav":
+            cmd.extend(["-ac", "1", "-ar", "24000", dst_path])
+        else:
+            cmd.append(dst_path)
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        return res.returncode == 0 and os.path.exists(dst_path) and os.path.getsize(dst_path) > 100
+    except Exception:
+        return False
+
+
 # Ses Rolleri ve Modelleri
 DEFAULT_VOICES = {
     "tr": {
@@ -109,6 +134,12 @@ class VoiceEngine:
         output_path: str,
         language: str = "tr",
         apply_effects: bool = True,
+        voice: Optional[str] = None,
+        rate: Optional[str] = None,
+        pitch: Optional[str] = None,
+        warmth: Optional[float] = None,
+        spatial: Optional[float] = None,
+        gain: Optional[float] = None,
     ) -> bool:
         """
         Metni zarif EDITH sesiyle sentezleyip belirtilen dosyaya kaydeder.
@@ -124,66 +155,100 @@ class VoiceEngine:
 
         # Kullanıcı yapılandırmasından hız ve ses ayarlarını oku
         app_cfg = load_app_config()
-        user_rate = app_cfg.get("voice_rate", cfg["rate"])
-        user_pitch = app_cfg.get("voice_pitch", cfg["pitch"])
-        warmth = float(app_cfg.get("voice_warmth", 0.45))
-        spatial = float(app_cfg.get("voice_spatial", 0.12))
+        active_voice = voice or app_cfg.get("voice_primary", cfg["primary"])
+        user_rate = rate if rate is not None else app_cfg.get("voice_rate", cfg["rate"])
+        user_pitch = pitch if pitch is not None else app_cfg.get("voice_pitch", cfg["pitch"])
+        eff_warmth = float(warmth if warmth is not None else app_cfg.get("voice_warmth", 0.45))
+        eff_spatial = float(spatial if spatial is not None else app_cfg.get("voice_spatial", 0.12))
+        eff_gain = float(gain if gain is not None else app_cfg.get("voice_gain", 1.05))
+        effects_enabled = app_cfg.get("voice_effects_enabled", True) if apply_effects else False
 
-        temp_raw = None
+        temp_files_to_clean = []
         success = False
+        temp_raw = None
 
-        # 1. Aşama: Edge-TTS Nöral Sentezleme (EmelNeural)
         try:
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-                temp_raw = f.name
-
-            loop = asyncio.new_event_loop()
+            # 1. Aşama: Edge-TTS Nöral Sentezleme
             try:
-                success = loop.run_until_complete(
-                    self._synthesize_edge_tts(
-                        text=clean_text,
-                        output_path=temp_raw,
-                        voice=cfg["primary"],
-                        rate=user_rate,
-                        pitch=user_pitch,
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+                    temp_raw = f.name
+                temp_files_to_clean.append(temp_raw)
+
+                loop = asyncio.new_event_loop()
+                try:
+                    success = loop.run_until_complete(
+                        self._synthesize_edge_tts(
+                            text=clean_text,
+                            output_path=temp_raw,
+                            voice=active_voice,
+                            rate=user_rate,
+                            pitch=user_pitch,
+                        )
                     )
+                finally:
+                    loop.close()
+
+            except Exception as e:
+                print(f"[VoiceEngine] Edge-TTS sentezleme denemesi başarısız: {e}")
+                success = False
+
+            # 2. Aşama: Eğer Edge-TTS başarısızsa Piper Offline Sentezleme
+            if not success:
+                print(f"[VoiceEngine] 🔄 Çevrimdışı Piper motoruna geçiliyor ({cfg['fallback']})...")
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    temp_raw = f.name
+                temp_files_to_clean.append(temp_raw)
+                success = self._synthesize_piper_fallback(clean_text, temp_raw, language=lang_key)
+
+            if not success or not temp_raw or not os.path.exists(temp_raw):
+                print("[VoiceEngine] ❌ Sentezleme tamamlanamadı.")
+                return False
+
+            # 3. Aşama: Holografik Akustik & Sıcaklık Filtresi
+            out_ext = Path(output_path).suffix.lower()
+
+            if effects_enabled:
+                # Efekt uygulamak için WAV formatına dönüştür
+                if temp_raw.lower().endswith(".wav"):
+                    source_wav = temp_raw
+                else:
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                        source_wav = f.name
+                    temp_files_to_clean.append(source_wav)
+                    _convert_audio_file(temp_raw, source_wav, dst_format="wav")
+
+                # Holografik akustik ve sıcaklık filtresini uygula
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    processed_wav = f.name
+                temp_files_to_clean.append(processed_wav)
+
+                eff_ok = process_voice_audio(
+                    source_wav,
+                    processed_wav,
+                    warmth=eff_warmth,
+                    spatial_reverb=eff_spatial,
+                    gain=eff_gain,
                 )
-            finally:
-                loop.close()
-
-        except Exception as e:
-            print(f"[VoiceEngine] Edge-TTS sentezleme denemesi başarısız: {e}")
-            success = False
-
-        # 2. Aşama: Eğer Edge-TTS başarısızsa Piper Offline Sentezleme
-        if not success:
-            print(f"[VoiceEngine] 🔄 Çevrimdışı Piper motoruna geçiliyor ({cfg['fallback']})...")
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-                temp_raw = f.name
-            success = self._synthesize_piper_fallback(clean_text, temp_raw, language=lang_key)
-
-        if not success or not temp_raw or not os.path.exists(temp_raw):
-            print("[VoiceEngine] ❌ Sentezleme tamamlanamadı.")
-            return False
-
-        # 3. Aşama: Holografik Akustik & Sıcaklık Filtresi
-        try:
-            if apply_effects and temp_raw.endswith(".wav"):
-                # WAV ise doğrudan filtrele
-                process_voice_audio(temp_raw, output_path, warmth=warmth, spatial_reverb=spatial)
+                final_source = processed_wav if eff_ok else source_wav
             else:
-                # MP3 veya dönüştürülemeyen dosyayı doğrudan hedefe yaz/kopyala
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-                if os.path.exists(output_path):
-                    try:
-                        os.remove(output_path)
-                    except Exception:
-                        pass
-                os.rename(temp_raw, output_path)
-                temp_raw = None
+                final_source = temp_raw
+
+            # Hedef dosyaya aktar
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    pass
+
+            src_ext = Path(final_source).suffix.lower()
+            if src_ext == out_ext or not out_ext:
+                Path(output_path).write_bytes(Path(final_source).read_bytes())
+            else:
+                _convert_audio_file(final_source, output_path, dst_format=out_ext.lstrip("."))
 
             dur = int((time.time() - t0) * 1000)
-            print(f"[VoiceEngine] ✅ EDITH ses yanıtı hazırlandı ({dur}ms) -> {Path(output_path).name}")
+            print(f"[VoiceEngine] ✅ EDITH ses yanıtı hazırlandı ({dur}ms | Ses: {active_voice} | Efektler: {'Açık' if effects_enabled else 'Kapalı'}) -> {Path(output_path).name}")
             return True
 
         except Exception as e:
@@ -191,15 +256,19 @@ class VoiceEngine:
             try:
                 if temp_raw and os.path.exists(temp_raw):
                     Path(output_path).write_bytes(Path(temp_raw).read_bytes())
-                return True
+                    return True
             except Exception:
-                return False
+                pass
+            return False
+
         finally:
-            if temp_raw and os.path.exists(temp_raw):
-                try:
-                    os.remove(temp_raw)
-                except Exception:
-                    pass
+            for p in temp_files_to_clean:
+                if p and os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
+
 
     def play_file(self, file_path: str, blocking: bool = False, on_done: Optional[Callable[[], None]] = None) -> bool:
         """Ses dosyasını yerel ses donanımı üzerinden çalar (Pygame Mixer / Winsound)."""
@@ -252,6 +321,16 @@ class VoiceEngine:
             threading.Thread(target=_play, daemon=True).start()
             return True
 
+    def stop(self) -> None:
+        """Devam eden ses oynatmasını anında durdurur."""
+        try:
+            import pygame
+            if pygame.mixer.get_init():
+                pygame.mixer.music.stop()
+        except Exception:
+            pass
+        self._is_speaking = False
+
     def speak(
         self,
         text: str,
@@ -267,12 +346,12 @@ class VoiceEngine:
             return False
 
         def _speak_worker():
-            temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+            temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
             temp_path = temp_file.name
             temp_file.close()
 
             try:
-                ok = self.synthesize_to_file(clean, temp_path, language=language)
+                ok = self.synthesize_to_file(clean, temp_path, language=language, apply_effects=True)
                 if ok:
                     self.play_file(temp_path, blocking=True, on_done=on_done)
                 else:
@@ -291,6 +370,7 @@ class VoiceEngine:
         else:
             threading.Thread(target=_speak_worker, daemon=True).start()
             return True
+
 
 
 # Global yardımcı fonksiyonlar

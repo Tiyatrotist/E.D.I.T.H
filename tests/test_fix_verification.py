@@ -288,6 +288,50 @@ def test_vision_suite():
     print("✅ 13. Görsel Zeka (Screen & Camera Vision + Clicker) bileşenleri başarıyla doğrulandı.")
 
 
+def test_voice_studio_and_holographic_engine():
+    import wave
+    import tempfile
+    import os
+    from core.voice_engine import get_voice_engine, VoiceEngine
+    from tools.voice_studio import VoiceStudioApp, PRESET_SENTENCES, VOICE_OPTIONS
+
+    # 1. Preset ve seçenek kontrolleri
+    assert len(PRESET_SENTENCES) >= 5
+    assert len(VOICE_OPTIONS) >= 3
+
+    # 2. VoiceEngine ve akustik işlemci testi
+    engine = get_voice_engine()
+    assert isinstance(engine, VoiceEngine)
+    assert hasattr(engine, "stop")
+    assert hasattr(engine, "synthesize_to_file")
+
+    tmp_wav = tempfile.mktemp(suffix=".wav")
+    try:
+        ok = engine.synthesize_to_file(
+            text="Holografik ses testi.",
+            output_path=tmp_wav,
+            language="tr",
+            apply_effects=True,
+            warmth=0.5,
+            spatial=0.15,
+            gain=1.05,
+        )
+        assert ok is True
+        assert os.path.exists(tmp_wav)
+        assert os.path.getsize(tmp_wav) > 1000
+
+        # WAV dosyasının geçerli RIFF PCM olduğunu doğrula
+        with wave.open(tmp_wav, "rb") as wf:
+            assert wf.getnchannels() in (1, 2)
+            assert wf.getframerate() > 0
+            assert wf.getnframes() > 0
+    finally:
+        if os.path.exists(tmp_wav):
+            os.remove(tmp_wav)
+
+    print("✅ 14. Ses Stüdyosu & Holografik Akustik Motoru başarıyla doğrulandı.")
+
+
 if __name__ == "__main__":
     test_exit_phrases()
     test_open_app_web_services()
@@ -302,6 +346,8 @@ if __name__ == "__main__":
     test_phone_offline_queue_and_sync()
     test_sip_bridge_initialization()
     test_vision_suite()
+    test_voice_studio_and_holographic_engine()
     print("\n🎉 TÜM TESTLER BAŞARIYLA TAMAMLANDI!")
+
 
 

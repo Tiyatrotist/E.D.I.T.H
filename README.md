@@ -108,7 +108,14 @@ ollama pull llama3.2-vision  # Optional for offline vision
 python main.py
 ```
 
+### 4. Acoustic Calibration & Voice Studio (Optional)
+Fine-tune EDITH's warm holographic female voice, speech rate, pitch, and Stark HUD reverb:
+```bash
+python voice_studio.py
+```
+
 ---
+
 
 ## 🧩 Developing Custom Plugins
 

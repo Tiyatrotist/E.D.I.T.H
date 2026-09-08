@@ -185,7 +185,24 @@ If your mobile phone's battery dies or the phone is shut down, standard carrier 
 
 ---
 
-## 🤖 6. Human-Like Discord Bot Setup
+## 🎙️ 6. Voice Studio & Holographic Acoustic Calibration
+
+EDITH includes an integrated Voice Studio for fine-tuning her warm, gentle, and noble female voice:
+
+```bash
+python voice_studio.py
+```
+
+### Features:
+- **Warmth EQ Filter:** Softens harsh digital sibilance, imparting a warm, intimate vocal tone.
+- **Hologram Spatial Reverb:** Simulates Stark Industries HUD holographic room aura.
+- **Real-Time A/B Testing:** Compare raw neural TTS directly with holographic acoustic filtering.
+- **Spectrum Visualizer:** Live HUD audio spectrum bar animations during playback.
+- **One-Click Sync:** Settings immediately sync with `app_config.json` and take effect across all desktop responses.
+
+---
+
+## 🤖 7. Human-Like Discord Bot Setup
 
 EDITH can join your Discord server as an intelligent, conversational bot with voice channel support and remote PC management.
 
@@ -213,7 +230,8 @@ EDITH can join your Discord server as an intelligent, conversational bot with vo
 
 ---
 
-## 🧩 7. Developing Custom Plugins
+## 🧩 8. Developing Custom Plugins
+
 
 Extending EDITH with custom capabilities requires zero modifications to existing code. Place any `.py` script inside the `plugins/` directory, and EDITH will automatically register it at startup.
 
