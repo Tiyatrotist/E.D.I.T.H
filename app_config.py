@@ -163,7 +163,9 @@ DEFAULT_DISCORD = {
 }
 
 DEFAULT_SERVER_SYNC = {
-    "enabled": True,
+    # Remote sync can transmit chat and call data. Keep it opt-in until the
+    # user has configured and trusted a protected server endpoint.
+    "enabled": False,
     "server_url": "http://152.70.13.195:8080",
     "sync_interval_seconds": 30,
     "notify_new_calls_voice": True,
