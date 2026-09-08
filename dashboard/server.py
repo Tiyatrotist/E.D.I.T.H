@@ -402,6 +402,19 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
             <button class="ctrl-btn" onclick="showDailyReport()">📊 Günlük Yaşam Raporu</button>
         </div>
 
+        <!-- Sabah Brifingi Kartı (Rule 8 Parity) -->
+        <div class="card" style="border: 1px solid rgba(0, 212, 192, 0.4); background: linear-gradient(135deg, rgba(0, 212, 192, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>☕ Yönetici Sabah Brifingi</span>
+                <span id="briefing-time-badge" style="font-size:10px; color:var(--primary);">Hazır</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Hava durumu, donanım sağlığı, bugünkü hatırlatıcılar ve telefon sekreteri çağrılarını tek tıkla özetleyin.
+            </div>
+            <button class="ctrl-btn" id="morning-briefing-btn" style="width:100%; border-color:var(--primary); font-weight:bold;" onclick="fetchMorningBriefing(true)">☕ Sabah Brifingi Al & Seslendir</button>
+            <div id="briefing-result-box" style="display:none; margin-top:12px; padding:10px; background:rgba(0,0,0,0.5); border-radius:8px; font-size:12px; line-height:1.5; color:#fff; max-height:220px; overflow-y:auto; white-space:pre-wrap;"></div>
+        </div>
+
         <!-- Donanım Telemetrisi -->
         <div class="card">
             <div class="card-title">⚡ Donanım Telemetrisi</div>
@@ -789,6 +802,32 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 const d = await res.json();
                 appendMsg('bot', d.report || 'Rapor hazır.');
             } catch(e) {}
+        }
+
+        async function fetchMorningBriefing(speakDesktop) {
+            const box = document.getElementById('briefing-result-box');
+            const badge = document.getElementById('briefing-time-badge');
+            box.style.display = 'block';
+            box.innerText = '☕ Sabah brifingi hazırlanıyor, sistemler taranıyor...';
+            badge.innerText = 'Alınıyor...';
+
+            try {
+                const res = await fetch('/api/briefing/trigger', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({speak_desktop: speakDesktop})
+                });
+                const d = await res.json();
+                box.innerText = d.markdown || d.spoken || 'Brifing hazırlandı.';
+                badge.innerText = d.time || 'Güncel';
+                appendMsg('bot', '☕ **Sabah Brifingi:**\n' + (d.markdown || d.spoken));
+                if(!speakDesktop && d.spoken) {
+                    playPiperAudio(d.spoken);
+                }
+            } catch(e) {
+                box.innerText = 'Brifing alınamadı: ' + e;
+                badge.innerText = 'Hata';
+            }
         }
 
         async function sendQuickCmd(cmd) {
@@ -1342,6 +1381,46 @@ async def get_activity_report_endpoint():
         return {"status": "ok", "report": get_activity_report()}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# ── PROAKTİF SABAH BRİFİNGİ & GÜNLÜK ASİSTANLIK (RULE 8) ────────────────────
+
+@app.get("/api/briefing")
+async def get_briefing_endpoint():
+    """Güncel sabah brifingi telemetrisini ve raporunu döndürür."""
+    try:
+        from actions.morning_briefing import get_briefing_summary_dict
+        return get_briefing_summary_dict()
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/briefing/trigger")
+async def post_briefing_trigger(payload: dict = None):
+    """Sabah brifingini anında üretir, talep edilirse masaüstünde seslendirir."""
+    try:
+        from actions.morning_briefing import generate_morning_briefing, mark_briefing_completed
+        speak_desktop = bool((payload or {}).get("speak_desktop", False))
+        md, spoken = generate_morning_briefing(force=True)
+        mark_briefing_completed()
+
+        if speak_desktop:
+            try:
+                from actions.tts import speak_text
+                import threading
+                threading.Thread(target=lambda: speak_text(spoken, language="tr"), daemon=True).start()
+            except Exception as e:
+                print(f"[Dashboard] ⚠️ Masaüstü brifing seslendirme notu: {e}")
+
+        now_time = time.strftime("%H:%M")
+        return {
+            "status": "ok",
+            "time": now_time,
+            "markdown": md,
+            "spoken": spoken,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @app.get("/api/history")

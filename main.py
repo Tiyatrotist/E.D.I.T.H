@@ -75,6 +75,10 @@ from actions.activity_supervisor import (
     set_dnd_mode,
     snooze_activity_alerts,
 )
+from actions.morning_briefing import (
+    generate_morning_briefing,
+    check_and_run_startup_briefing,
+)
 from core.activity_tracker import get_activity_tracker
 
 # ── Services ─────────────────────────────────────────────────────────────────
@@ -140,6 +144,7 @@ Kullanabileceğin araçlar:
 - get_activity_report(): Kullanıcının bugünkü toplam çalışma, oyun, medya ve dinlenme sürelerini içeren yaşam raporunu sun
 - set_dnd_mode(enabled): Rahatsız etme modunu (DND) aç veya kapat (enabled: true/false veya boş)
 - snooze_activity_alerts(minutes): Mola ve oyun hatırlatmalarını belirtilen dakika kadar ertele
+- get_morning_briefing(force): Günün sabah brifingini ve özetini sunar (hava durumu, donanım sağlığı, hatırlatıcılar, cevapsız aramalar)
 - save_memory(category, key, value): Hafızaya kaydet
 - delete_memory(category, key, match_text): Hafızadan sil
 
@@ -168,6 +173,7 @@ Available tools:
 - get_activity_report(): Summary of today's work, gaming, media and idle time
 - set_dnd_mode(enabled): Toggle or set Do Not Disturb mode
 - snooze_activity_alerts(minutes): Snooze break and activity reminders
+- get_morning_briefing(force): Executive morning briefing (weather, system telemetry, agenda, phone secretary calls)
 - analyze_screen(query): Analyze screen content
 - save_memory(category, key, value): Save memory
 
@@ -649,6 +655,13 @@ class EdithLive:
                 )
                 result = r or "Hatırlatıcı eklendi."
 
+            elif name == "get_morning_briefing":
+                force_flag = bool(args.get("force", True))
+                md, sp = await loop.run_in_executor(
+                    None, lambda: generate_morning_briefing(force=force_flag)
+                )
+                result = md
+
             # ── DİĞER KOMUTLAR ───────────────────────────────────────────────
             elif name == "shell_run":
                 r = await loop.run_in_executor(None, lambda: shell_run(args.get("command", "")))
@@ -1018,6 +1031,19 @@ class EdithLive:
 
             # 6. Proaktif & Monitör Arka Plan Görevi
             asyncio.create_task(self._proactive_and_monitor_loop())
+
+            # 7. Sabah Brifingi Kontrolü (Açılıştan 4 saniye sonra)
+            async def _startup_briefing_worker():
+                await asyncio.sleep(4)
+                if not self._stop_requested.is_set():
+                    try:
+                        await self._loop.run_in_executor(
+                            None, lambda: check_and_run_startup_briefing(self)
+                        )
+                    except Exception as e:
+                        print(f"[Main] ⚠️ Sabah brifingi açılış hatası: {e}")
+
+            asyncio.create_task(_startup_briefing_worker())
 
             # Ana döngü — sürekli STT dinleme
             stt_enabled = bool(get_app_config_value("stt_enabled", True))

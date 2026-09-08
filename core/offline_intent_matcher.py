@@ -60,6 +60,11 @@ class OfflineIntentMatcher:
                 print(f"[OfflineMatcher] Çağrı notu okuma hatası: {e}")
                 return None, None, "Arama kayıtları incelendi, bekleyen aktif bir çağrı notu bulunmuyor efendim."
 
+        # ── 1.1 Sabah Brifingi & Günlük Özet ─────────────────────────────────
+        briefing_keywords = ["sabah brifingi", "günün özeti", "brifing ver", "beni bilgilendir", "günlük brifing", "brifing al", "sabah raporu"]
+        if any(bk in clean for bk in briefing_keywords):
+            return "get_morning_briefing", {"force": True}, "Günün sabah brifingi hazırlanıyor efendim."
+
         # ── 2. Telefon Şarjı / Batarya Durumu ────────────────────────────────
         if "telefon" in clean and any(w in clean for w in ["şarj", "pil", "batarya"]):
             try:
