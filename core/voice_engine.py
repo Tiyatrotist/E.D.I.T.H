@@ -43,7 +43,8 @@ def _convert_audio_file(src_path: str, dst_path: str, dst_format: str = "wav") -
     try:
         from pydub import AudioSegment
         sound = AudioSegment.from_file(src_path)
-        sound.export(dst_path, format=dst_format)
+        out_f = sound.export(dst_path, format=dst_format)
+        out_f.close()
         return os.path.exists(dst_path) and os.path.getsize(dst_path) > 100
     except Exception:
         pass
@@ -190,8 +191,10 @@ class VoiceEngine:
         eff_gain = float(gain if gain is not None else app_cfg.get("voice_gain", 1.05))
         effects_enabled = app_cfg.get("voice_effects_enabled", True) if apply_effects else False
 
-        # Fonetik normalizasyon ve telaffuz eğitimi (Ava ve multilingual harf düzeltmeleri)
+        # Fonetik normalizasyon ve telaffuz eğitimi (Evrensel G2P ve fonolojik asimilasyon)
         norm_text = normalize_text_for_speech(clean_text, voice=active_voice)
+        if norm_text != clean_text:
+            print(f"[VoiceEngine] 🔤 Fonetik G2P: '{clean_text[:40]}...' -> '{norm_text[:40]}...' (Model: {active_voice})")
 
         temp_files_to_clean = []
         success = False

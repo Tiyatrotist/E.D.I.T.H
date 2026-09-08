@@ -1,21 +1,23 @@
 """
-tools/voice_studio.py — EDITH Zarif Ses Stüdyosu & Akustik Karakter Kalibratörü
+tools/voice_studio.py — EDITH Zarif Ses Stüdyosu & Evrensel Fonetik Laboratuvarı
 
 Kullanıcının vizyonuna göre:
 "Filmdeki gibi zarif, fütüristik bir kadın yapay zeka sesi; güzel, naif, tatlı, 
 evimdeki eşim gibi hissettirecek ama profesyonelliği bozmayacak."
 
-Bu araç ile:
-- Canlı ses presetlerini (sıcak karşılama, Stark asistanı, şefkatli, sekreter, vizyon brifingi) tek tıkla test edebilirsiniz.
-- Hız, perde, ses sıcaklığı (Warmth EQ) ve Stark holografik yankı filtrelerini kulağınıza göre anlık kalibre edebilirsiniz.
-- Efekt Aç/Kapa toggle'ı ile ham TTS ve holografik ses arasındaki farkı anında dinleyebilirsiniz.
-- Beğendiğiniz ayarları tek tıkla 'app_config.json'a kaydedebilir ve tüm EDITH modüllerinde anında kullanabilirsiniz.
+Sürdürülebilir Fonetik Mimari:
+- Kelime bazlı sözlük doldurma zorunluluğu yoktur.
+- Evrensel Türkçe sesbilim (G2P) kuralları harf ve hece bazında otomatik uygulanır.
+- Canlı Fonetik Laboratuvarı ile A/B (Ham TTS vs G2P İyileştirilmiş) karşılaştırma yapılabilir.
+- Hız, perde, ses sıcaklığı (Warmth EQ) ve Stark holografik yankı filtreleri canlı kalibre edilir.
+- Tek tıkla 'app_config.json'a kaydedilir ve tüm sistem genelinde devrede kalır.
 
 Debug: Sentezleme, dönüşüm ve akustik işlem süreleri loglanır.
 """
 
 from __future__ import annotations
 
+import asyncio
 import math
 import os
 import random
@@ -44,7 +46,13 @@ if str(ROOT_DIR) not in sys.path:
 
 from app_config import load_app_config, save_app_config
 from core.voice_engine import get_voice_engine
-from core.phonetic_normalizer import load_lexicon, set_pronunciation, remove_pronunciation
+from core.phonetic_normalizer import (
+    get_phonetic_preview,
+    load_lexicon,
+    normalize_text_for_speech,
+    remove_pronunciation,
+    set_pronunciation,
+)
 
 
 # ── Cyber HUD Renk Paleti ───────────────────────────────────────────────────
@@ -80,9 +88,9 @@ VOICE_OPTIONS = [
 class VoiceStudioApp:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("E.D.I.T.H — Zarif Ses Stüdyosu & Akustik Kalibrasyon")
-        self.root.geometry("700x820")
-        self.root.minsize(640, 750)
+        self.root.title("E.D.I.T.H — Zarif Ses Stüdyosu & Fonetik Kalibrasyon")
+        self.root.geometry("700x840")
+        self.root.minsize(640, 760)
         self.root.configure(bg=C_BG)
 
         self.cfg = load_app_config()
@@ -105,12 +113,14 @@ class VoiceStudioApp:
         self.warmth_var = tk.DoubleVar(value=float(self.cfg.get("voice_warmth", 0.45)))
         self.spatial_var = tk.DoubleVar(value=float(self.cfg.get("voice_spatial", 0.12)))
         self.gain_var = tk.DoubleVar(value=float(self.cfg.get("voice_gain", 1.05)))
+        self.phonetic_preview_var = tk.StringVar(value="")
 
         self.status_var = tk.StringVar(value="● Hazır — Bir model ve cümle seçip 'DİNLE & TEST ET' butonuna basın.")
         self.is_playing = False
         self._anim_running = False
 
         self._build_ui()
+        self._update_phonetic_preview()
 
     def _build_ui(self):
         # 1. Başlık ve Banner
@@ -149,6 +159,7 @@ class VoiceStudioApp:
             values=[label for _, label in VOICE_OPTIONS]
         )
         self.voice_combo.pack(side="left", padx=4, pady=6)
+        self.voice_combo.bind("<<ComboboxSelected>>", self._on_voice_changed)
 
         chk_effects = tk.Checkbutton(
             top_bar, text="🎧 Holografik Akustik & Sıcaklık",
@@ -157,7 +168,6 @@ class VoiceStudioApp:
             selectcolor="#020d0d", font=("Segoe UI", 8, "bold")
         )
         chk_effects.pack(side="right", padx=(6, 10), pady=6)
-
 
         # 3. Örnek Cümle Seçimi (Persona Presetleri)
         box_sentences = tk.LabelFrame(
@@ -181,18 +191,43 @@ class VoiceStudioApp:
         box_sentences.grid_columnconfigure(0, weight=1)
         box_sentences.grid_columnconfigure(1, weight=1)
 
-        # 4. Metin Giriş Alanı
+        # 4. Metin Giriş Alanı & Canlı G2P Önizlemesi
+        lbl_frame = tk.Frame(self.root, bg=C_BG)
+        lbl_frame.pack(fill="x", padx=20, pady=(4, 1))
+
         tk.Label(
-            self.root, text="Seslendirilecek Metin:",
+            lbl_frame, text="Seslendirilecek Metin:",
             fg=C_PRI, bg=C_BG, font=("Segoe UI", 8, "bold")
-        ).pack(anchor="w", padx=20, pady=(4, 1))
+        ).pack(side="left")
+
+        self.lbl_phonetic_status = tk.Label(
+            lbl_frame, text="⚡ Otomatik G2P Aktif",
+            fg=C_GOLD, bg=C_BG, font=("Consolas", 8)
+        )
+        self.lbl_phonetic_status.pack(side="right")
 
         self.text_input = tk.Text(
             self.root, height=2, bg="#031515", fg=C_TEXT,
             insertbackground=C_PRI, font=("Segoe UI", 9), padx=8, pady=6, borderwidth=1, relief="solid"
         )
-        self.text_input.pack(fill="x", padx=18, pady=(0, 4))
+        self.text_input.pack(fill="x", padx=18, pady=(0, 2))
         self.text_input.insert("1.0", PRESET_SENTENCES[0][1])
+        self.text_input.bind("<KeyRelease>", self._update_phonetic_preview)
+
+        # Canlı G2P Çıktı Çubuğu
+        preview_box = tk.Frame(self.root, bg="#021414", highlightthickness=1, highlightbackground="#0a3030")
+        preview_box.pack(fill="x", padx=18, pady=(0, 4))
+
+        tk.Label(
+            preview_box, text="🔤 Fonetik G2P:",
+            fg="#7ab8b2", bg="#021414", font=("Consolas", 8, "bold")
+        ).pack(side="left", padx=(6, 4), pady=3)
+
+        self.lbl_preview = tk.Label(
+            preview_box, textvariable=self.phonetic_preview_var,
+            fg=C_PRI, bg="#021414", font=("Segoe UI", 8), anchor="w"
+        )
+        self.lbl_preview.pack(side="left", fill="x", expand=True, padx=(0, 6), pady=3)
 
         # 5. Ses Akustik Ayarları (Sliders)
         box_tuning = tk.LabelFrame(
@@ -266,12 +301,12 @@ class VoiceStudioApp:
         )
         self.btn_reset.pack(side="left", padx=(0, 6))
 
-        self.btn_trainer = tk.Button(
-            ctrl_frame, text="🎯 TELAFFUZ EĞİTİMİ", command=self._open_pronunciation_trainer,
+        self.btn_lab = tk.Button(
+            ctrl_frame, text="🎯 FONETİK LABORATUVARI", command=self._open_phonetic_lab,
             bg="#163836", fg=C_GOLD, activebackground=C_MID, activeforeground=C_TEXT,
             font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=7
         )
-        self.btn_trainer.pack(side="left", padx=(0, 6))
+        self.btn_lab.pack(side="left", padx=(0, 6))
 
         self.btn_save = tk.Button(
             ctrl_frame, text="💾 AYARLARI KAYDET & UYGULA", command=self._save_settings,
@@ -279,7 +314,6 @@ class VoiceStudioApp:
             font=("Segoe UI", 9, "bold"), borderwidth=0, cursor="hand2", padx=14, pady=7
         )
         self.btn_save.pack(side="right")
-
 
         # Durum Çubuğu
         status_lbl = tk.Label(
@@ -365,9 +399,27 @@ class VoiceStudioApp:
         val_lbl.pack(side="right")
         _update_val(var.get())
 
+    def _on_voice_changed(self, event=None):
+        self._update_phonetic_preview()
+
+    def _update_phonetic_preview(self, event=None):
+        try:
+            text = self.text_input.get("1.0", "end-1c").strip()
+            voice_id = self.voice_map.get(self.voice_label_var.get(), "tr-TR-EmelNeural")
+            prev = get_phonetic_preview(text, voice=voice_id)
+            norm = prev["normalized"]
+            if len(norm) > 85:
+                norm = norm[:82] + "..."
+            rules = prev.get("rules_applied", [])
+            rule_str = f" [{', '.join(rules)}]" if rules else ""
+            self.phonetic_preview_var.set(f"{norm}{rule_str}")
+        except Exception:
+            pass
+
     def _select_preset(self, text: str):
         self.text_input.delete("1.0", "end")
         self.text_input.insert("1.0", text)
+        self._update_phonetic_preview()
         self._play_current_async()
 
     def _reset_defaults(self):
@@ -379,6 +431,7 @@ class VoiceStudioApp:
         self.warmth_var.set(0.45)
         self.spatial_var.set(0.12)
         self.gain_var.set(1.05)
+        self._update_phonetic_preview()
         self.status_var.set("🔄 Varsayılan fabrika ayarlarına dönüldü.")
 
     def _stop_playback(self):
@@ -410,7 +463,7 @@ class VoiceStudioApp:
             temp_file.close()
 
             try:
-                # Motor üzerinden tam sentezleme ve filtreleme
+                # Motor üzerinden tam sentezleme ve filtreleme (Evrensel G2P dahil)
                 ok = self.engine.synthesize_to_file(
                     text=text,
                     output_path=temp_path,
@@ -482,127 +535,237 @@ class VoiceStudioApp:
             f"Artık EDITH'in tüm yanıtlarında ve masaüstü konuşmalarında bu zarif ses kullanılacaktır."
         )
 
-    def _open_pronunciation_trainer(self):
-        """Kullanıcının Ava ve diğer modeller için kelime ve harf okunuşlarını eğittiği panel."""
-        trainer = tk.Toplevel(self.root)
-        trainer.title("🎯 E.D.I.T.H — Fonetik Harf & Telaffuz Eğitmeni")
-        trainer.geometry("580x540")
-        trainer.minsize(520, 480)
-        trainer.configure(bg=C_BG)
-        trainer.transient(self.root)
+    def _open_phonetic_lab(self):
+        """
+        Kullanıcının sözlük bağımlılığı olmadan, evrensel Türkçe fonoloji
+        ve G2P kurallarını canlı inceleyebileceği ve A/B dinleme testi yapabileceği laboratuvar.
+        """
+        lab = tk.Toplevel(self.root)
+        lab.title("🎯 E.D.I.T.H — Evrensel Sesbilim & Fonetik Laboratuvarı")
+        lab.geometry("640x660")
+        lab.minsize(580, 560)
+        lab.configure(bg=C_BG)
+        lab.transient(self.root)
+
+        # Başlık
+        hdr = tk.Frame(lab, bg=C_BG)
+        hdr.pack(fill="x", padx=16, pady=(12, 4))
 
         tk.Label(
-            trainer, text="🎯 SES & HARF TELAFFUZ EĞİTİMİ",
+            hdr, text="🎯 EVRENSEL SESBİLİM & G2P LABORATUVARI",
             fg=C_PRI, bg=C_BG, font=("Consolas", 13, "bold")
-        ).pack(anchor="w", padx=16, pady=(12, 2))
+        ).pack(anchor="w")
 
         tk.Label(
-            trainer, text="Ava ve diğer modeller için harfleri ve kelimeleri kulağınıza göre eğitin:",
+            hdr, text="Sözlük doldurmaya gerek kalmadan, Türkçe sesbilim kurallarının harf ve hecelere uygulanması.",
             fg="#7ab8b2", bg=C_BG, font=("Segoe UI", 8)
-        ).pack(anchor="w", padx=16, pady=(0, 8))
+        ).pack(anchor="w", pady=(2, 0))
 
-        # Liste çerçevesi
-        frame_list = tk.Frame(trainer, bg=C_PANEL)
-        frame_list.pack(fill="both", expand=True, padx=16, pady=4)
+        # 1. Aktif Fonolojik Kurallar Kartı
+        rules_card = tk.LabelFrame(
+            lab, text=" ⚡ Aktif Türkçe Fonoloji Kuralları (Otomatik İşletilir) ",
+            fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")
+        )
+        rules_card.pack(fill="x", padx=16, pady=6)
 
-        columns = ("word", "phoneme")
-        tree = ttk.Treeview(frame_list, columns=columns, show="headings", height=9)
-        tree.heading("word", text="Kelime / İfade (Yazılan)")
-        tree.heading("phoneme", text="Fonetik Okunuş (Modelin Okuyacağı)")
-        tree.column("word", width=220)
-        tree.column("phoneme", width=270)
-        tree.pack(side="left", fill="both", expand=True)
+        rule_items = [
+            ("✓ Yumuşak G (ğ) Asimilasyonu:", "[ön ünlü] + ğ + [ön ünlü] ➔ y (değil ➔ deyil, eğitim ➔ eyitim, öğrenci ➔ öyrenci)"),
+            ("✓ Ünlü Uzatması (Coda ğ):", "[ünlü] + ğ + [ünsüz] ➔ [ünlü][ünlü] (dağ ➔ daa, sağlık ➔ saalık, doğru ➔ dooru)"),
+            ("✓ Çok Dilli Afrikasyon (Ava/Emma):", "c ➔ j (/dʒ/) | ç ➔ ch (/tʃ/) | ş ➔ sh (/ʃ/) (canım, çok, çiçek, akşam)"),
+            ("✓ Teknik Kısaltma & Sayılar:", "%50 ➔ yüzde 50 | 24°C ➔ 24 derece | Wi-Fi, RAM, CPU, GPU, AI, HUD"),
+        ]
+        for title, desc in rule_items:
+            r_frame = tk.Frame(rules_card, bg=C_PANEL)
+            r_frame.pack(fill="x", padx=8, pady=2)
+            tk.Label(r_frame, text=title, fg=C_PRI, bg=C_PANEL, font=("Consolas", 8, "bold"), width=30, anchor="w").pack(side="left")
+            tk.Label(r_frame, text=desc, fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8), anchor="w").pack(side="left", fill="x", expand=True)
 
-        scrollbar = ttk.Scrollbar(frame_list, orient="vertical", command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
+        # 2. Canlı Hece & Cümle Test Alanı
+        test_box = tk.LabelFrame(
+            lab, text=" 🔬 Canlı Metin & Hece Dönüşüm Denetleyicisi ",
+            fg=C_BLUE, bg=C_PANEL, font=("Segoe UI", 8, "bold")
+        )
+        test_box.pack(fill="both", expand=True, padx=16, pady=6)
 
-        def _refresh_tree():
-            tree.delete(*tree.get_children())
-            lex = load_lexicon()
-            for w, p in sorted(lex.items()):
-                tree.insert("", "end", values=(w, p))
+        tk.Label(test_box, text="Test Edilecek Metin:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=10, pady=(6, 2))
 
-        _refresh_tree()
+        ent_test = tk.Text(test_box, height=2, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), padx=6, pady=4)
+        ent_test.pack(fill="x", padx=10, pady=(0, 6))
+        current_text = self.text_input.get("1.0", "end-1c").strip() or PRESET_SENTENCES[0][1]
+        ent_test.insert("1.0", current_text)
 
-        # Giriş formu
-        form = tk.Frame(trainer, bg=C_PANEL, padx=10, pady=8)
-        form.pack(fill="x", padx=16, pady=8)
+        # Karşılaştırma Sonuç Paneli
+        comp_frame = tk.Frame(test_box, bg="#021212", highlightthickness=1, highlightbackground="#082b28", padx=10, pady=8)
+        comp_frame.pack(fill="x", padx=10, pady=4)
 
-        tk.Label(form, text="Kelime:", fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=0, sticky="w")
-        ent_word = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=20)
-        ent_word.grid(row=0, column=1, padx=6, pady=4, sticky="w")
+        tk.Label(comp_frame, text="⚡ G2P Çıktısı:", fg=C_GOLD, bg="#021212", font=("Consolas", 8, "bold")).grid(row=0, column=0, sticky="w")
+        lbl_g2p_out = tk.Label(comp_frame, text="", fg=C_PRI, bg="#021212", font=("Segoe UI", 9, "bold"), anchor="w", wraplength=480, justify="left")
+        lbl_g2p_out.grid(row=0, column=1, sticky="w", padx=6)
 
-        tk.Label(form, text="Okunuş:", fg=C_PRI, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=2, sticky="w", padx=(10, 0))
-        ent_phoneme = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=24)
-        ent_phoneme.grid(row=0, column=3, padx=6, pady=4, sticky="w")
+        tk.Label(comp_frame, text="📋 Kurallar:", fg="#7ab8b2", bg="#021212", font=("Consolas", 8, "bold")).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        lbl_rules_applied = tk.Label(comp_frame, text="", fg=C_TEXT, bg="#021212", font=("Segoe UI", 8), anchor="w")
+        lbl_rules_applied.grid(row=1, column=1, sticky="w", padx=6, pady=(4, 0))
 
-        def _on_tree_select(event):
-            selected = tree.selection()
-            if selected:
-                item = tree.item(selected[0])
-                vals = item.get("values", [])
-                if len(vals) >= 2:
-                    ent_word.delete(0, "end")
-                    ent_word.insert(0, str(vals[0]))
-                    ent_phoneme.delete(0, "end")
-                    ent_phoneme.insert(0, str(vals[1]))
+        def _refresh_test_preview(*_):
+            txt = ent_test.get("1.0", "end-1c").strip()
+            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
+            prev = get_phonetic_preview(txt, voice=voice_id)
+            lbl_g2p_out.config(text=prev["normalized"])
+            r_list = prev.get("rules_applied", [])
+            lbl_rules_applied.config(text=", ".join(r_list) if r_list else "Standart Metin (Özel kural tetiklenmedi)")
 
-        tree.bind("<<TreeviewSelect>>", _on_tree_select)
+        ent_test.bind("<KeyRelease>", _refresh_test_preview)
+        _refresh_test_preview()
 
-        # Butonlar
-        btn_box = tk.Frame(trainer, bg=C_BG)
-        btn_box.pack(fill="x", padx=16, pady=(0, 12))
+        # A/B Test Dinleme Butonları
+        ab_frame = tk.Frame(test_box, bg=C_PANEL)
+        ab_frame.pack(fill="x", padx=10, pady=8)
 
-        def _add_or_update():
-            w = ent_word.get().strip()
-            p = ent_phoneme.get().strip()
-            if not w or not p:
-                messagebox.showwarning("Eksik Bilgi", "Lütfen hem kelimeyi hem de nasıl okunacağını girin.", parent=trainer)
-                return
-            set_pronunciation(w, p)
-            _refresh_tree()
-            ent_word.delete(0, "end")
-            ent_phoneme.delete(0, "end")
-
-        def _delete_selected():
-            w = ent_word.get().strip()
-            if not w:
-                selected = tree.selection()
-                if selected:
-                    w = str(tree.item(selected[0])["values"][0])
-            if w:
-                remove_pronunciation(w)
-                _refresh_tree()
-                ent_word.delete(0, "end")
-                ent_phoneme.delete(0, "end")
-
-        def _test_word():
-            p = ent_phoneme.get().strip() or ent_word.get().strip()
-            if not p:
+        def _play_raw():
+            txt = ent_test.get("1.0", "end-1c").strip()
+            if not txt:
                 return
             voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
             threading.Thread(
-                target=lambda: self.engine.speak(p, language="tr", blocking=True),
+                target=lambda: self._synthesize_and_play_raw(txt, voice_id),
+                daemon=True
+            ).start()
+
+        def _play_g2p():
+            txt = ent_test.get("1.0", "end-1c").strip()
+            if not txt:
+                return
+            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
+            threading.Thread(
+                target=lambda: self._synthesize_and_play_g2p(txt, voice_id),
                 daemon=True
             ).start()
 
         tk.Button(
-            btn_box, text="💾 Kuralı Kaydet", command=_add_or_update,
-            bg=C_MID, fg="#ffffff", font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+            ab_frame, text="▶️ HAM TTS (G2P Kapalı)", command=_play_raw,
+            bg="#24180d", fg=C_GOLD, activebackground=C_GOLD, activeforeground=C_BG,
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
         ).pack(side="left", padx=(0, 6))
 
         tk.Button(
-            btn_box, text="🗑️ Seçiliyi Sil", command=_delete_selected,
-            bg="#2a0d14", fg=C_RED, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+            ab_frame, text="▶️ G2P İLE DİNLE (Doğal Türkçe)", command=_play_g2p,
+            bg=C_MID, fg="#ffffff", activebackground=C_PRI, activeforeground=C_BG,
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=12, pady=5
         ).pack(side="left", padx=(0, 6))
 
         tk.Button(
-            btn_box, text="🔊 Canlı Dinle", command=_test_word,
-            bg="#0f3b38", fg=C_GOLD, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
-        ).pack(side="right")
+            ab_frame, text="⏹️ DURDUR", command=self._stop_playback,
+            bg="#2a0d14", fg=C_RED, activebackground=C_RED, activeforeground=C_BG,
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+        ).pack(side="left")
 
+        # 3. İsteğe Bağlı Özel İsimler (Opsiyonel Override)
+        opt_box = tk.LabelFrame(
+            lab, text=" 🏷️ İsteğe Bağlı Özel İsimler (Opsiyonel Override) ",
+            fg="#7ab8b2", bg=C_PANEL, font=("Segoe UI", 8)
+        )
+        opt_box.pack(fill="x", padx=16, pady=(0, 10))
 
+        tk.Label(
+            opt_box,
+            text="Not: Türkçe kelimeler için bir şey girmeniz gerekmez. Sadece oyun nickleri veya yabancı özel isimler içindir.",
+            fg="#5e8c87", bg=C_PANEL, font=("Segoe UI", 7)
+        ).pack(anchor="w", padx=8, pady=(2, 4))
+
+        form_sub = tk.Frame(opt_box, bg=C_PANEL)
+        form_sub.pack(fill="x", padx=8, pady=(0, 6))
+
+        tk.Label(form_sub, text="Özel İsim:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8)).pack(side="left")
+        ent_name = tk.Entry(form_sub, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, width=14, font=("Segoe UI", 8))
+        ent_name.pack(side="left", padx=4)
+
+        tk.Label(form_sub, text="Okunuş:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8)).pack(side="left", padx=(6, 0))
+        ent_read = tk.Entry(form_sub, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, width=16, font=("Segoe UI", 8))
+        ent_read.pack(side="left", padx=4)
+
+        def _save_opt_override():
+            n = ent_name.get().strip()
+            r = ent_read.get().strip()
+            if n and r:
+                set_pronunciation(n, r)
+                _refresh_test_preview()
+                self._update_phonetic_preview()
+                ent_name.delete(0, "end")
+                ent_read.delete(0, "end")
+                messagebox.showinfo("Kaydedildi", f"'{n}' için okunuş kaydedildi.", parent=lab)
+
+        tk.Button(
+            form_sub, text="Ekle", command=_save_opt_override,
+            bg="#0d2b28", fg=C_GOLD, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=8, pady=2
+        ).pack(side="left", padx=6)
+
+    def _synthesize_and_play_raw(self, text: str, voice_id: str):
+        """Fonetik G2P normalizasyonu OLMADAN ham TTS sesini oynatır (A/B test için)."""
+        import edge_tts
+        temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+
+        try:
+            rate_str = f"{'+' if self.rate_var.get() > 0 else ''}{self.rate_var.get()}%"
+            pitch_str = f"{'+' if self.pitch_var.get() > 0 else ''}{self.pitch_var.get()}Hz"
+            self.root.after(0, self._start_visualizer)
+
+            loop = asyncio.new_event_loop()
+            try:
+                comm = edge_tts.Communicate(text=text, voice=voice_id, rate=rate_str, pitch=pitch_str)
+                loop.run_until_complete(comm.save(temp_path))
+            finally:
+                loop.close()
+
+            if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+                self.engine.play_file(temp_path, blocking=True)
+        except Exception as e:
+            print(f"[VoiceStudio] ⚠️ Ham ses test hatası: {e}")
+        finally:
+            self.root.after(0, self._stop_visualizer)
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
+
+    def _synthesize_and_play_g2p(self, text: str, voice_id: str):
+        """Evrensel Fonetik G2P uygulanmış ve holografik filtreli EDITH sesini oynatır."""
+        rate_str = f"{'+' if self.rate_var.get() > 0 else ''}{self.rate_var.get()}%"
+        pitch_str = f"{'+' if self.pitch_var.get() > 0 else ''}{self.pitch_var.get()}Hz"
+        temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+
+        try:
+            self.root.after(0, self._start_visualizer)
+            ok = self.engine.synthesize_to_file(
+                text=text,
+                output_path=temp_path,
+                language="tr",
+                apply_effects=self.effects_var.get(),
+                voice=voice_id,
+                rate=rate_str,
+                pitch=pitch_str,
+                warmth=self.warmth_var.get(),
+                spatial=self.spatial_var.get(),
+                gain=self.gain_var.get(),
+            )
+            if ok and os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+                self.engine.play_file(temp_path, blocking=True)
+        except Exception as e:
+            print(f"[VoiceStudio] ⚠️ G2P ses test hatası: {e}")
+        finally:
+            self.root.after(0, self._stop_visualizer)
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception:
+                pass
+
+    # Geriye dönük uyumluluk alias'ı
+    _open_pronunciation_trainer = _open_phonetic_lab
 
 
 def open_voice_studio(parent=None):
