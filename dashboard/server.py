@@ -354,6 +354,23 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
             <div class="card-title">👁️ Görsel Analiz Sonucu</div>
             <div id="analysis-text" style="font-size:13px; line-height:1.45; color:#fff;"></div>
         </div>
+
+        <!-- Otonom Web Gezgini Kartı (Rule 8) -->
+        <div class="card" style="border: 1px solid rgba(0, 212, 192, 0.4); background: linear-gradient(135deg, rgba(0, 212, 192, 0.08), rgba(0, 0, 0, 0.4));">
+            <div class="card-title">
+                <span>🌐 Otonom Web Gezgini</span>
+                <span id="browser-status-badge" style="font-size:10px; color:var(--primary);">Hazır</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Herhangi bir linki başsız okuyun, özetletin veya dosyayı doğrudan bilgisayara indirin.
+            </div>
+            <input type="text" id="browser-url-input" placeholder="https://ornek.com veya dosya linki..." style="width:100%; box-sizing:border-box; background:rgba(0,0,0,0.4); border:1px solid rgba(0,212,192,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px; margin-bottom:8px;">
+            <div class="ctrl-grid">
+                <button class="ctrl-btn" id="browser-read-btn" onclick="triggerBrowserRead()">📄 Sayfayı Oku & Özetle</button>
+                <button class="ctrl-btn" id="browser-download-btn" onclick="triggerBrowserDownload()">📥 PC'ye İndir</button>
+            </div>
+            <div id="browser-result-box" style="display:none; margin-top:10px; padding:10px; background:rgba(0,0,0,0.6); border-radius:8px; font-size:12px; line-height:1.45; color:#fff; max-height:220px; overflow-y:auto; white-space:pre-wrap;"></div>
+        </div>
     </div>
 
     <!-- TAB 3: UZAK DOSYALAR & TRANSFER -->
@@ -675,6 +692,77 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 appendMsg('bot', '🖥️ **Ekran Analizi:** ' + (d.analysis || 'Görsel tarandı.'));
             } catch(e) {
                 textEl.innerText = 'Ekran analizi başarısız oldu: ' + e;
+            }
+        }
+
+        async function triggerBrowserRead() {
+            const inp = document.getElementById('browser-url-input');
+            const url = inp.value.trim();
+            if(!url) {
+                alert("Lütfen bir web adresi (URL) girin.");
+                return;
+            }
+            const box = document.getElementById('browser-result-box');
+            const badge = document.getElementById('browser-status-badge');
+            box.style.display = 'block';
+            box.innerText = '🌐 Web sayfası başsız olarak okunuyor ve özetleniyor...';
+            badge.innerText = 'Taranıyor...';
+
+            try {
+                const res = await fetch('/api/browser/read', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url, summarize: true})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    badge.innerText = 'Okundu';
+                    let output = '';
+                    if(d.summary) output += '📌 **Yönetici Özeti:**\n' + d.summary + '\n\n---\n\n';
+                    output += d.content;
+                    box.innerText = output;
+                    appendMsg('bot', '📄 **Web Sayfası İncelendi:** ' + url + '\n' + (d.summary || ''));
+                } else {
+                    badge.innerText = 'Hata';
+                    box.innerText = '❌ ' + (d.content || 'Sayfa okunamadı.');
+                }
+            } catch(e) {
+                badge.innerText = 'Hata';
+                box.innerText = 'İstek hatası: ' + e;
+            }
+        }
+
+        async function triggerBrowserDownload() {
+            const inp = document.getElementById('browser-url-input');
+            const url = inp.value.trim();
+            if(!url) {
+                alert("Lütfen indirilecek dosya adresini (URL) girin.");
+                return;
+            }
+            const box = document.getElementById('browser-result-box');
+            const badge = document.getElementById('browser-status-badge');
+            box.style.display = 'block';
+            box.innerText = '📥 Dosya bilgisayara indiriliyor...';
+            badge.innerText = 'İndiriliyor...';
+
+            try {
+                const res = await fetch('/api/browser/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url})
+                });
+                const d = await res.json();
+                if(d.status === 'ok') {
+                    badge.innerText = 'Tamamlandı';
+                    box.innerText = '✅ ' + d.message;
+                    appendMsg('sys', '📥 ' + d.message);
+                } else {
+                    badge.innerText = 'Hata';
+                    box.innerText = '❌ ' + d.message;
+                }
+            } catch(e) {
+                badge.innerText = 'Hata';
+                box.innerText = 'İndirme hatası: ' + e;
             }
         }
 
@@ -1532,6 +1620,76 @@ async def post_dev_run_endpoint(payload: dict = None):
             "status": "started",
             "message": f"Dev Agent görevi başlatıldı: '{task}'",
         }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── OTONOM WEB TARAYICI VE DERİN ARAŞTIRMA (RULE 8) ──────────────────────────
+
+@app.post("/api/browser/read")
+async def post_browser_read(payload: dict = None):
+    """Hedef web sayfasını başsız (headless) okur ve isteğe bağlı özetler."""
+    try:
+        from actions.browser import scrape_and_clean_page
+        url = (payload or {}).get("url", "").strip()
+        if not url:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "URL belirtilmedi."})
+
+        summarize = bool((payload or {}).get("summarize", True))
+        ok, content = scrape_and_clean_page(url, max_chars=4000)
+
+        summary = ""
+        if ok and summarize and len(content) > 150:
+            try:
+                from local_llm import LocalLLMClient
+                client = LocalLLMClient()
+                summary = await client.generate_response(
+                    prompt=f"Aşağıdaki web sayfası içeriğini 2-3 maddelik Türkçe yönetici özeti olarak özetle:\n\n{content[:2500]}",
+                    system_instruction="Sen Stark Industries web analistisin. Sadece kısa ve öz Türkçe maddeleme yap.",
+                    max_tokens=250,
+                )
+            except Exception as e:
+                summary = f"Özetleme yapılamadı: {e}"
+
+        return {
+            "status": "ok" if ok else "error",
+            "url": url,
+            "content": content,
+            "summary": summary,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/browser/download")
+async def post_browser_download(payload: dict = None):
+    """Web üzerinden bir dosyayı doğrudan PC'ye indirir."""
+    try:
+        from actions.browser import download_web_file
+        url = (payload or {}).get("url", "").strip()
+        if not url:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "İndirilecek URL belirtilmedi."})
+
+        dest = (payload or {}).get("destination", "")
+        ok, msg, path = download_web_file(url, destination_dir=dest)
+        if ok:
+            return {"status": "ok", "message": msg, "path": path}
+        return JSONResponse(status_code=400, content={"status": "error", "message": msg})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/browser/research")
+async def post_browser_research(payload: dict = None):
+    """Web üzerinde çoklu sayfalardan derin araştırma yapar."""
+    try:
+        from actions.browser import deep_web_research
+        query = (payload or {}).get("query", "").strip()
+        if not query:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Araştırma sorgusu belirtilmedi."})
+
+        report = deep_web_research(query)
+        return {"status": "ok", "report": report}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

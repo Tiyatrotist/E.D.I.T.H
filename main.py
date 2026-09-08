@@ -120,7 +120,7 @@ Kullanabileceğin araçlar:
 - analyze_camera(query): Bilgisayar kamerasından (webcam) anlık görüntü alıp odayı, kullanıcıyı veya nesneleri görür. Kullanıcı "bana bak", "kameradan bak", "beni görüyor musun", "üstümde ne var" dediğinde bu aracı çağır!
 - click_visual_element(description): Ekrandaki herhangi bir buton veya öğeyi görsel olarak tanıyıp tıklar. Kullanıcı "şu butona tıkla", "mavi kaydet düğmesine bas" dediğinde bu aracı çağır!
 - web_search(query, mode, max_results): Web ve güncel haber araması (search, news, price, compare)
-- browser_control(action, url, query): Tarayıcı kontrolü (open_url, search, play_youtube, close_tab) — Belirli bir site veya URL açmak için open_url kullanın
+- browser_control(action, url, query, target_path): Otonom tarayıcı ve web operatörü (open_url, search, read/scrape, download, research, scroll_down, scroll_up, new_tab, close_tab)
 - play_media(query, provider, autoplay): Müzik/video oynat (spotify, youtube, apple_music, auto)
 - search_and_play_youtube(query): YouTube video arama ve oynatma
 - get_youtube_channel_report(query, handle, video_limit): YouTube kanalı istatistikleri, abone sayısı ve son video analizleri
@@ -161,7 +161,7 @@ Available tools:
 - get_system_status(): Real-time CPU, RAM, GPU and hardware telemetry
 - get_weather(location): Weather info
 - web_search(query, mode, max_results): Web search
-- browser_control(action, url, query): Browser control
+- browser_control(action, url, query, target_path): Autonomous browser & web operator (open_url, search, read, download, research, scroll_down, scroll_up)
 - code_helper(intent, description, file_path, code, language): Code assistant
 - process_file(file_path, action, instruction): File processor
 - search_flights(origin, destination, date): Search flights
@@ -423,9 +423,10 @@ class EdithLive:
             elif name == "browser_control":
                 r = await loop.run_in_executor(
                     None, lambda: browser_control(
-                        args.get("action"),
-                        args.get("url"),
-                        args.get("query"),
+                        action=args.get("action", "open_url"),
+                        url=args.get("url"),
+                        query=args.get("query"),
+                        target_path=args.get("target_path"),
                     )
                 )
                 result = r or "Tarayıcı işlemi tamamlandı."
