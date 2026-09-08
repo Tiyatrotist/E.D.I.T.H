@@ -2465,15 +2465,43 @@ async def phone_battery(payload: dict):
 
 @app.get("/api/phone/status")
 async def phone_status():
-    """Bağlı telefonun durumunu, şarjını ve çevrimiçi/çevrimdışı bilgisini döndürür."""
+    """Bağlı telefonun durumunu, şarjını, ağ ve canlılık telemetrisini döndürür."""
     now = time.time()
     last_seen = _PHONE_STATUS.get("last_seen", 0.0)
     is_online = (last_seen > 0.0) and (now - last_seen <= 300)
+    battery = _PHONE_STATUS.get("battery")
+    ip = "Bilinmiyor"
+    device = "Android Termux"
+
+    # Orchestrator ve Controller telemetrisi
+    try:
+        from actions.phone_control import get_phone_controller
+        ctrl = get_phone_controller()
+        ctrl_status = ctrl.get_status()
+
+        # Eğer _PHONE_STATUS açıkça offline yapılmamışsa orchestrator durumunu kontrol et
+        if not (last_seen > 0.0 and (now - last_seen > 300)):
+            if ctrl_status.get("online"):
+                is_online = True
+
+        if battery is None and ctrl_status.get("battery_level") is not None:
+            battery = ctrl_status.get("battery_level")
+        if ctrl_status.get("ip") and ctrl_status.get("ip") != "Bilinmiyor":
+            ip = ctrl_status.get("ip")
+        if ctrl_status.get("device"):
+            device = ctrl_status.get("device")
+    except Exception:
+        pass
+
     return {
-        "battery": _PHONE_STATUS.get("battery"),
-        "status": _PHONE_STATUS.get("status"),
-        "last_seen": last_seen,
+        "online": is_online,
         "is_online": is_online,
+        "battery": battery,
+        "battery_level": battery,
+        "status": _PHONE_STATUS.get("status", "online" if is_online else "offline"),
+        "last_seen": last_seen,
+        "ip": ip,
+        "device": device,
         "pending_offline_count": len(_PHONE_STATUS.get("offline_queue", [])),
     }
 
@@ -2551,6 +2579,55 @@ async def termux_bash_script(request: Request):
         return Response(content=content, media_type="text/plain; charset=utf-8")
     return Response(content="# Not found", media_type="text/plain")
 
+
+@app.get("/api/termux/install.sh")
+async def termux_companion_install_script():
+    """Yeni nesil Termux Companion kurulum betiğini sunar."""
+    script_path = BASE_DIR / "termux_companion" / "install.sh"
+    if script_path.exists():
+        return Response(content=script_path.read_text(encoding="utf-8"), media_type="text/plain; charset=utf-8")
+    return Response(content='echo "[HATA] install.sh bulunamadı."', media_type="text/plain")
+
+@app.get("/api/termux/edith_phone_node.py")
+async def termux_companion_node_script():
+    """Yeni nesil Termux Companion Python düğümünü sunar."""
+    script_path = BASE_DIR / "termux_companion" / "edith_phone_node.py"
+    if script_path.exists():
+        return Response(content=script_path.read_text(encoding="utf-8"), media_type="text/plain; charset=utf-8")
+    return Response(content="# Not found", media_type="text/plain")
+
+
+@app.post("/api/phone/sms")
+async def api_phone_send_sms(request: Request):
+    """Telefon üzerinden SMS gönderir."""
+    data = await request.json()
+    number = str(data.get("number") or data.get("target") or "").strip()
+    text = str(data.get("text") or data.get("message") or "").strip()
+    if not number or not text:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Numara ve mesaj gereklidir."})
+    from actions.phone_control import get_phone_controller
+    res = get_phone_controller().send_sms(number, text)
+    return {"status": "ok", "message": res}
+
+@app.post("/api/phone/call")
+async def api_phone_make_call(request: Request):
+    """Telefon üzerinden arama başlatır."""
+    data = await request.json()
+    number = str(data.get("number") or data.get("target") or "").strip()
+    if not number:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Numara gereklidir."})
+    from actions.phone_control import get_phone_controller
+    res = get_phone_controller().make_call(number)
+    return {"status": "ok", "message": res}
+
+@app.post("/api/phone/torch")
+async def api_phone_toggle_torch(request: Request):
+    """Telefonun el fenerini açar/kapatır."""
+    data = await request.json()
+    state = str(data.get("state") or "aç").strip()
+    from actions.phone_control import get_phone_controller
+    res = get_phone_controller().toggle_torch(state)
+    return {"status": "ok", "message": res}
 
 @app.post("/api/phone/simulate")
 async def phone_simulate():

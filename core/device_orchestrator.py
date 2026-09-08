@@ -352,6 +352,16 @@ class DeviceOrchestrator:
                 return self._self_node
             return self._nodes.get(node_id)
 
+    def get_node_by_type(self, device_type: str) -> Optional[DeviceNode]:
+        """Belirtilen cihaz tipindeki (örn: 'phone_termux') ilk aktif/kayıtlı düğümü döner."""
+        with self._lock:
+            for node in self._nodes.values():
+                if node.device_type == device_type:
+                    return node
+            if self._self_node.device_type == device_type:
+                return self._self_node
+            return None
+
     def prune_stale_nodes(self, max_age: float = 120.0) -> int:
         """Belirtilen süreden uzun süredir görünmeyen çevrimdışı düğümleri bellekten temizler."""
         with self._lock:

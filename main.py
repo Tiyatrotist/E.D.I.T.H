@@ -149,6 +149,7 @@ Kullanabileceğin araçlar:
 - recall_memory(query): Hafızadaki bilgileri semantik olarak ara ve hatırla
 - delete_memory(category, key): Hafızadan belirtilen bilgiyi veya tercihi sil (forget_memory)
 - manage_devices(action, message): Yerel ağdaki bağlı EDITH cihazlarını listele (list), anons yayınla (broadcast) veya çevrimdışı kuyruğu senkronize et (sync)
+- phone_control(action, target, message, state): Android telefon üzerinden SMS gönder (send_sms), arama yap (call), el fenerini aç/kapat (torch), telefonun şarj ve ağ durumunu sorgula (status)
 
 Araç çağırmak için şu formatı kullan:
 TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
@@ -747,6 +748,26 @@ class EdithLive:
 
                 else:
                     result = f"Geçersiz cihaz yönetim eylemi: {act}"
+
+            # ── ANDROID TELEFON & TERMUX COMPANION KONTROLÜ (ITEM 13) ─────────
+            elif name in ("phone_control", "phone_send_sms", "phone_call", "phone_torch", "phone_status"):
+                from actions.phone_control import get_phone_controller
+                ctrl = get_phone_controller()
+                act = str(args.get("action") or name).strip().lower()
+                target = str(args.get("target") or args.get("contact") or args.get("number") or "").strip()
+                msg = str(args.get("message") or args.get("text") or "").strip()
+                state = str(args.get("state") or "aç").strip()
+
+                if "sms" in act or act == "send_sms":
+                    result = await loop.run_in_executor(None, lambda: ctrl.send_sms(target, msg))
+                elif "call" in act or act == "make_call":
+                    result = await loop.run_in_executor(None, lambda: ctrl.make_call(target))
+                elif "torch" in act or "fener" in act:
+                    result = await loop.run_in_executor(None, lambda: ctrl.toggle_torch(state))
+                elif "vibrate" in act:
+                    result = await loop.run_in_executor(None, lambda: ctrl.vibrate())
+                else:
+                    result = await loop.run_in_executor(None, lambda: ctrl.get_status_summary())
 
             # ── DİĞER KOMUTLAR ───────────────────────────────────────────────
             elif name == "shell_run":

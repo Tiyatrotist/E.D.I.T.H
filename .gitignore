@@ -65,6 +65,7 @@ memory/call_logs.json
 memory/chat_history.json
 memory/memory.json
 memory/phone_book.json
+memory/offline_sync_queue.json
 *.pem
 *.key
 *.token
