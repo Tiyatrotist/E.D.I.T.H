@@ -169,6 +169,30 @@ class VoiceStudioApp:
         )
         chk_effects.pack(side="right", padx=(6, 10), pady=6)
 
+        # 2.5 Hızlı Akustik Karakter Profilleri (One-Click Presets)
+        profile_frame = tk.Frame(self.root, bg="#031818", highlightthickness=1, highlightbackground=C_DIM)
+        profile_frame.pack(fill="x", padx=18, pady=(2, 4))
+
+        tk.Label(
+            profile_frame, text="⚡ Hazır Karakter Profilleri:",
+            fg=C_GOLD, bg="#031818", font=("Segoe UI", 8, "bold")
+        ).pack(side="left", padx=(10, 8), pady=5)
+
+        profiles = [
+            ("👑 Stark Hologram (Kusursuz Türkçe)", "emel_stark"),
+            ("💖 Şefkatli & Samimi (Samantha)", "emel_warm"),
+            ("🛡️ Taktik Brifing", "emel_tactical"),
+            ("🌐 Ava (Amerikan Aksanlı)", "ava"),
+        ]
+        for lbl, pid in profiles:
+            btn = tk.Button(
+                profile_frame, text=lbl,
+                command=lambda p=pid: self._apply_character_profile(p),
+                bg="#062525", fg=C_TEXT, activebackground=C_MID, activeforeground=C_PRI,
+                font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=8, pady=3
+            )
+            btn.pack(side="left", padx=3, pady=4)
+
         # 3. Örnek Cümle Seçimi (Persona Presetleri)
         box_sentences = tk.LabelFrame(
             self.root, text=" 🎭 Karakter & Persona Test Cümleleri ",
@@ -398,6 +422,56 @@ class VoiceStudioApp:
         scale.pack(side="left", fill="x", expand=True, padx=(0, 6))
         val_lbl.pack(side="right")
         _update_val(var.get())
+
+        def _on_var_write(*_):
+            try:
+                _update_val(var.get())
+            except Exception:
+                pass
+
+        var.trace_add("write", _on_var_write)
+
+    def _apply_character_profile(self, profile_id: str):
+        """Hazır ses karakter ve akustik profillerini tek tıkla uygular."""
+        if profile_id == "emel_stark":
+            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
+            self.effects_var.set(True)
+            self.rate_var.set(-4)
+            self.pitch_var.set(-1)
+            self.warmth_var.set(0.55)
+            self.spatial_var.set(0.14)
+            self.gain_var.set(1.08)
+            self.status_var.set("👑 'Stark Hologram' uygulandı (%100 Kusursuz Türkçe, Ava sıcaklığı ve naif tını).")
+        elif profile_id == "emel_warm":
+            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
+            self.effects_var.set(True)
+            self.rate_var.set(-5)
+            self.pitch_var.set(0)
+            self.warmth_var.set(0.65)
+            self.spatial_var.set(0.08)
+            self.gain_var.set(1.05)
+            self.status_var.set("💖 'Şefkatli & Samimi' uygulandı (Evdeki dost hissi, sakin ve yumuşak ton).")
+        elif profile_id == "emel_tactical":
+            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
+            self.effects_var.set(True)
+            self.rate_var.set(-2)
+            self.pitch_var.set(1)
+            self.warmth_var.set(0.40)
+            self.spatial_var.set(0.16)
+            self.gain_var.set(1.10)
+            self.status_var.set("🛡️ 'Taktik Brifing' uygulandı (Net, kararlı ve profesyonel asistan).")
+        elif profile_id == "ava":
+            self.voice_label_var.set(self.rev_voice_map.get("en-US-AvaMultilingualNeural", list(self.voice_map.keys())[1]))
+            self.effects_var.set(True)
+            self.rate_var.set(-2)
+            self.pitch_var.set(0)
+            self.warmth_var.set(0.45)
+            self.spatial_var.set(0.12)
+            self.gain_var.set(1.05)
+            self.status_var.set("🌐 'Ava Multilingual' seçildi (Amerikan aksanlı çok dilli model).")
+
+        self._update_phonetic_preview()
+        self._play_current_async()
 
     def _on_voice_changed(self, event=None):
         self._update_phonetic_preview()
