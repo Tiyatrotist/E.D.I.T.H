@@ -113,12 +113,18 @@ class VoiceEngine:
             import edge_tts
             import edge_tts.communicate
 
-            # Turkish / Multilingual SSML Dil Uyarlaması
-            # edge_tts varsayılan olarak xml:lang='en-US' gönderir; bu da Ava ve çok dilli modellerin
-            # Türkçe harfleri İngilizce fonetikle okumasına sebep olur.
-            # xml:lang='tr-TR' olarak ayarlandığında model doğrudan Türkçe fonetik kurallarını çalıştırır.
+            # Edge-TTS SSML Dil Kodu Eşlemesi:
+            # Modelin ana dil koduna (locale) göre belirlenmelidir.
+            # en-US modellerine (Ava) xml:lang='tr-TR' zorlandığında sunucu konuşmayı
+            # 4.5 kat yavaşlatıp (5sn yerine 23sn) hece hece kekelemeye yol açar.
+            # en-US gönderildiğinde Ava akıcı, hızlı ve doğal konuşur.
             v_lower = voice.lower()
-            lang_code = "tr-TR" if (language.lower().startswith("tr") or "multilingual" in v_lower or "tr-" in v_lower) else "en-US"
+            if v_lower.startswith("tr-"):
+                lang_code = "tr-TR"
+            elif v_lower.startswith("fr-"):
+                lang_code = "fr-FR"
+            else:
+                lang_code = "en-US"
 
             def _dynamic_mkssml(tc, escaped_text):
                 if isinstance(escaped_text, bytes):

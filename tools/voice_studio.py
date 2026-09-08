@@ -100,9 +100,9 @@ class VoiceStudioApp:
         self.voice_map = {label: vid for vid, label in VOICE_OPTIONS}
         self.rev_voice_map = {vid: label for vid, label in VOICE_OPTIONS}
 
-        current_voice = self.cfg.get("voice_primary", "tr-TR-EmelNeural")
+        current_voice = self.cfg.get("voice_primary", "en-US-AvaMultilingualNeural")
         if current_voice not in self.rev_voice_map:
-            current_voice = "tr-TR-EmelNeural"
+            current_voice = "en-US-AvaMultilingualNeural"
 
         # Değişkenler
         self.selected_preset_var = tk.StringVar(value=PRESET_SENTENCES[0][1])
@@ -169,29 +169,6 @@ class VoiceStudioApp:
         )
         chk_effects.pack(side="right", padx=(6, 10), pady=6)
 
-        # 2.5 Hızlı Akustik Karakter Profilleri (One-Click Presets)
-        profile_frame = tk.Frame(self.root, bg="#031818", highlightthickness=1, highlightbackground=C_DIM)
-        profile_frame.pack(fill="x", padx=18, pady=(2, 4))
-
-        tk.Label(
-            profile_frame, text="⚡ Hazır Karakter Profilleri:",
-            fg=C_GOLD, bg="#031818", font=("Segoe UI", 8, "bold")
-        ).pack(side="left", padx=(10, 8), pady=5)
-
-        profiles = [
-            ("👑 Stark Hologram (Kusursuz Türkçe)", "emel_stark"),
-            ("💖 Şefkatli & Samimi (Samantha)", "emel_warm"),
-            ("🛡️ Taktik Brifing", "emel_tactical"),
-            ("🌐 Ava (Amerikan Aksanlı)", "ava"),
-        ]
-        for lbl, pid in profiles:
-            btn = tk.Button(
-                profile_frame, text=lbl,
-                command=lambda p=pid: self._apply_character_profile(p),
-                bg="#062525", fg=C_TEXT, activebackground=C_MID, activeforeground=C_PRI,
-                font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=8, pady=3
-            )
-            btn.pack(side="left", padx=3, pady=4)
 
         # 3. Örnek Cümle Seçimi (Persona Presetleri)
         box_sentences = tk.LabelFrame(
@@ -326,7 +303,7 @@ class VoiceStudioApp:
         self.btn_reset.pack(side="left", padx=(0, 6))
 
         self.btn_lab = tk.Button(
-            ctrl_frame, text="🎯 FONETİK LABORATUVARI", command=self._open_phonetic_lab,
+            ctrl_frame, text="🎯 AVA'YI EĞİT (Harf & Telaffuz)", command=self._open_ava_trainer,
             bg="#163836", fg=C_GOLD, activebackground=C_MID, activeforeground=C_TEXT,
             font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=7
         )
@@ -431,55 +408,13 @@ class VoiceStudioApp:
 
         var.trace_add("write", _on_var_write)
 
-    def _apply_character_profile(self, profile_id: str):
-        """Hazır ses karakter ve akustik profillerini tek tıkla uygular."""
-        if profile_id == "emel_stark":
-            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
-            self.effects_var.set(True)
-            self.rate_var.set(-4)
-            self.pitch_var.set(-1)
-            self.warmth_var.set(0.55)
-            self.spatial_var.set(0.14)
-            self.gain_var.set(1.08)
-            self.status_var.set("👑 'Stark Hologram' uygulandı (%100 Kusursuz Türkçe, Ava sıcaklığı ve naif tını).")
-        elif profile_id == "emel_warm":
-            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
-            self.effects_var.set(True)
-            self.rate_var.set(-5)
-            self.pitch_var.set(0)
-            self.warmth_var.set(0.65)
-            self.spatial_var.set(0.08)
-            self.gain_var.set(1.05)
-            self.status_var.set("💖 'Şefkatli & Samimi' uygulandı (Evdeki dost hissi, sakin ve yumuşak ton).")
-        elif profile_id == "emel_tactical":
-            self.voice_label_var.set(self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0]))
-            self.effects_var.set(True)
-            self.rate_var.set(-2)
-            self.pitch_var.set(1)
-            self.warmth_var.set(0.40)
-            self.spatial_var.set(0.16)
-            self.gain_var.set(1.10)
-            self.status_var.set("🛡️ 'Taktik Brifing' uygulandı (Net, kararlı ve profesyonel asistan).")
-        elif profile_id == "ava":
-            self.voice_label_var.set(self.rev_voice_map.get("en-US-AvaMultilingualNeural", list(self.voice_map.keys())[1]))
-            self.effects_var.set(True)
-            self.rate_var.set(-2)
-            self.pitch_var.set(0)
-            self.warmth_var.set(0.45)
-            self.spatial_var.set(0.12)
-            self.gain_var.set(1.05)
-            self.status_var.set("🌐 'Ava Multilingual' seçildi (Amerikan aksanlı çok dilli model).")
-
-        self._update_phonetic_preview()
-        self._play_current_async()
-
     def _on_voice_changed(self, event=None):
         self._update_phonetic_preview()
 
     def _update_phonetic_preview(self, event=None):
         try:
             text = self.text_input.get("1.0", "end-1c").strip()
-            voice_id = self.voice_map.get(self.voice_label_var.get(), "tr-TR-EmelNeural")
+            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
             prev = get_phonetic_preview(text, voice=voice_id)
             norm = prev["normalized"]
             if len(norm) > 85:
@@ -497,16 +432,16 @@ class VoiceStudioApp:
         self._play_current_async()
 
     def _reset_defaults(self):
-        default_label = self.rev_voice_map.get("tr-TR-EmelNeural", list(self.voice_map.keys())[0])
+        default_label = self.rev_voice_map.get("en-US-AvaMultilingualNeural", list(self.voice_map.keys())[0])
         self.voice_label_var.set(default_label)
         self.effects_var.set(True)
-        self.rate_var.set(-3)
-        self.pitch_var.set(2)
+        self.rate_var.set(0)
+        self.pitch_var.set(0)
         self.warmth_var.set(0.45)
         self.spatial_var.set(0.12)
         self.gain_var.set(1.05)
         self._update_phonetic_preview()
-        self.status_var.set("🔄 Varsayılan fabrika ayarlarına dönüldü.")
+        self.status_var.set("🔄 Ava için varsayılan fabrika ayarlarına dönüldü.")
 
     def _stop_playback(self):
         self.engine.stop()
@@ -609,99 +544,89 @@ class VoiceStudioApp:
             f"Artık EDITH'in tüm yanıtlarında ve masaüstü konuşmalarında bu zarif ses kullanılacaktır."
         )
 
-    def _open_phonetic_lab(self):
+    def _open_ava_trainer(self):
         """
-        Kullanıcının sözlük bağımlılığı olmadan, evrensel Türkçe fonoloji
-        ve G2P kurallarını canlı inceleyebileceği ve A/B dinleme testi yapabileceği laboratuvar.
+        Kullanıcının Ava çok dilli modelinin Türkçe harf ve telaffuzlarını
+        kendi kulağına ve zevkine göre canlı eğitip kalibre edebileceği özel stüdyo.
         """
-        lab = tk.Toplevel(self.root)
-        lab.title("🎯 E.D.I.T.H — Evrensel Sesbilim & Fonetik Laboratuvarı")
-        lab.geometry("640x660")
-        lab.minsize(580, 560)
-        lab.configure(bg=C_BG)
-        lab.transient(self.root)
+        trainer = tk.Toplevel(self.root)
+        trainer.title("🎯 E.D.I.T.H — Ava Çok Dilli Model Eğitim & Telaffuz Stüdyosu")
+        trainer.geometry("640x700")
+        trainer.minsize(580, 600)
+        trainer.configure(bg=C_BG)
+        trainer.transient(self.root)
+
+        ava_vid = "en-US-AvaMultilingualNeural"
 
         # Başlık
-        hdr = tk.Frame(lab, bg=C_BG)
+        hdr = tk.Frame(trainer, bg=C_BG)
         hdr.pack(fill="x", padx=16, pady=(12, 4))
 
         tk.Label(
-            hdr, text="🎯 EVRENSEL SESBİLİM & G2P LABORATUVARI",
+            hdr, text="🎯 AVA MODEL & HARF TELAFFUZ EĞİTMENİ",
             fg=C_PRI, bg=C_BG, font=("Consolas", 13, "bold")
         ).pack(anchor="w")
 
         tk.Label(
-            hdr, text="Sözlük doldurmaya gerek kalmadan, Türkçe sesbilim kurallarının harf ve hecelere uygulanması.",
+            hdr, text="Ava'nın Türkçe harf, hece ve kelimeleri kulağınıza en doğal gelecek şekilde öğrenmesi için canlı kalibratör.",
             fg="#7ab8b2", bg=C_BG, font=("Segoe UI", 8)
         ).pack(anchor="w", pady=(2, 0))
 
-        # 1. Aktif Fonolojik Kurallar Kartı
+        # 1. Aktif Fonolojik Kurallar (Ava için)
         rules_card = tk.LabelFrame(
-            lab, text=" ⚡ Aktif Türkçe Fonoloji Kuralları (Otomatik İşletilir) ",
+            trainer, text=" ⚡ Ava'nın Temel Türkçe Fonoloji Kuralları ",
             fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")
         )
-        rules_card.pack(fill="x", padx=16, pady=6)
+        rules_card.pack(fill="x", padx=16, pady=4)
 
         rule_items = [
-            ("✓ Yumuşak G (ğ) Asimilasyonu:", "[ön ünlü] + ğ + [ön ünlü] ➔ y (değil ➔ deyil, eğitim ➔ eyitim, öğrenci ➔ öyrenci)"),
-            ("✓ Ünlü Uzatması (Coda ğ):", "[ünlü] + ğ + [ünsüz] ➔ [ünlü][ünlü] (dağ ➔ daa, sağlık ➔ saalık, doğru ➔ dooru)"),
-            ("✓ Çok Dilli Afrikasyon (Ava/Emma):", "c ➔ j (/dʒ/) | ç ➔ ch (/tʃ/) | ş ➔ sh (/ʃ/) (canım, çok, çiçek, akşam)"),
-            ("✓ Teknik Kısaltma & Sayılar:", "%50 ➔ yüzde 50 | 24°C ➔ 24 derece | Wi-Fi, RAM, CPU, GPU, AI, HUD"),
+            ("✓ c ➔ j (/dʒ/ sesi):", "canım ➔ janım | gece ➔ geje | sıcak ➔ sıjak"),
+            ("✓ ç ➔ ch (/tʃ/ sesi):", "çok ➔ chok | açık ➔ achık | çiçek ➔ chichek"),
+            ("✓ ş ➔ sh (/ʃ/ sesi):", "şey ➔ shey | akşam ➔ aksham | başarılı ➔ basharılı"),
+            ("✓ Yumuşak G (ğ) Kuralı:", "değil ➔ deyil | eğitim ➔ eyitim | dağ ➔ daa"),
         ]
         for title, desc in rule_items:
             r_frame = tk.Frame(rules_card, bg=C_PANEL)
-            r_frame.pack(fill="x", padx=8, pady=2)
-            tk.Label(r_frame, text=title, fg=C_PRI, bg=C_PANEL, font=("Consolas", 8, "bold"), width=30, anchor="w").pack(side="left")
+            r_frame.pack(fill="x", padx=8, pady=1)
+            tk.Label(r_frame, text=title, fg=C_PRI, bg=C_PANEL, font=("Consolas", 8, "bold"), width=24, anchor="w").pack(side="left")
             tk.Label(r_frame, text=desc, fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8), anchor="w").pack(side="left", fill="x", expand=True)
 
-        # 2. Canlı Hece & Cümle Test Alanı
+        # 2. Canlı Ava Cümle Testi (A/B)
         test_box = tk.LabelFrame(
-            lab, text=" 🔬 Canlı Metin & Hece Dönüşüm Denetleyicisi ",
+            trainer, text=" 🔬 Canlı Ava Dinleme & Karşılaştırma Testi ",
             fg=C_BLUE, bg=C_PANEL, font=("Segoe UI", 8, "bold")
         )
-        test_box.pack(fill="both", expand=True, padx=16, pady=6)
-
-        tk.Label(test_box, text="Test Edilecek Metin:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8, "bold")).pack(anchor="w", padx=10, pady=(6, 2))
+        test_box.pack(fill="x", padx=16, pady=4)
 
         ent_test = tk.Text(test_box, height=2, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), padx=6, pady=4)
-        ent_test.pack(fill="x", padx=10, pady=(0, 6))
+        ent_test.pack(fill="x", padx=10, pady=(6, 4))
         current_text = self.text_input.get("1.0", "end-1c").strip() or PRESET_SENTENCES[0][1]
         ent_test.insert("1.0", current_text)
 
-        # Karşılaştırma Sonuç Paneli
-        comp_frame = tk.Frame(test_box, bg="#021212", highlightthickness=1, highlightbackground="#082b28", padx=10, pady=8)
-        comp_frame.pack(fill="x", padx=10, pady=4)
+        comp_frame = tk.Frame(test_box, bg="#021212", highlightthickness=1, highlightbackground="#082b28", padx=8, pady=4)
+        comp_frame.pack(fill="x", padx=10, pady=2)
 
-        tk.Label(comp_frame, text="⚡ G2P Çıktısı:", fg=C_GOLD, bg="#021212", font=("Consolas", 8, "bold")).grid(row=0, column=0, sticky="w")
-        lbl_g2p_out = tk.Label(comp_frame, text="", fg=C_PRI, bg="#021212", font=("Segoe UI", 9, "bold"), anchor="w", wraplength=480, justify="left")
-        lbl_g2p_out.grid(row=0, column=1, sticky="w", padx=6)
-
-        tk.Label(comp_frame, text="📋 Kurallar:", fg="#7ab8b2", bg="#021212", font=("Consolas", 8, "bold")).grid(row=1, column=0, sticky="w", pady=(4, 0))
-        lbl_rules_applied = tk.Label(comp_frame, text="", fg=C_TEXT, bg="#021212", font=("Segoe UI", 8), anchor="w")
-        lbl_rules_applied.grid(row=1, column=1, sticky="w", padx=6, pady=(4, 0))
+        tk.Label(comp_frame, text="⚡ Ava'nın Okuyacağı Metin:", fg=C_GOLD, bg="#021212", font=("Consolas", 8, "bold")).pack(anchor="w")
+        lbl_g2p_out = tk.Label(comp_frame, text="", fg=C_PRI, bg="#021212", font=("Segoe UI", 8, "bold"), anchor="w", wraplength=520, justify="left")
+        lbl_g2p_out.pack(fill="x", anchor="w", pady=(2, 0))
 
         def _refresh_test_preview(*_):
             txt = ent_test.get("1.0", "end-1c").strip()
-            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
-            prev = get_phonetic_preview(txt, voice=voice_id)
+            prev = get_phonetic_preview(txt, voice=ava_vid)
             lbl_g2p_out.config(text=prev["normalized"])
-            r_list = prev.get("rules_applied", [])
-            lbl_rules_applied.config(text=", ".join(r_list) if r_list else "Standart Metin (Özel kural tetiklenmedi)")
 
         ent_test.bind("<KeyRelease>", _refresh_test_preview)
         _refresh_test_preview()
 
-        # A/B Test Dinleme Butonları
         ab_frame = tk.Frame(test_box, bg=C_PANEL)
-        ab_frame.pack(fill="x", padx=10, pady=8)
+        ab_frame.pack(fill="x", padx=10, pady=6)
 
         def _play_raw():
             txt = ent_test.get("1.0", "end-1c").strip()
             if not txt:
                 return
-            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
             threading.Thread(
-                target=lambda: self._synthesize_and_play_raw(txt, voice_id),
+                target=lambda: self._synthesize_and_play_raw(txt, ava_vid),
                 daemon=True
             ).start()
 
@@ -709,69 +634,136 @@ class VoiceStudioApp:
             txt = ent_test.get("1.0", "end-1c").strip()
             if not txt:
                 return
-            voice_id = self.voice_map.get(self.voice_label_var.get(), "en-US-AvaMultilingualNeural")
             threading.Thread(
-                target=lambda: self._synthesize_and_play_g2p(txt, voice_id),
+                target=lambda: self._synthesize_and_play_g2p(txt, ava_vid),
                 daemon=True
             ).start()
 
         tk.Button(
-            ab_frame, text="▶️ HAM TTS (G2P Kapalı)", command=_play_raw,
+            ab_frame, text="▶️ Ava ile Dinle (Ham)", command=_play_raw,
             bg="#24180d", fg=C_GOLD, activebackground=C_GOLD, activeforeground=C_BG,
-            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=4
         ).pack(side="left", padx=(0, 6))
 
         tk.Button(
-            ab_frame, text="▶️ G2P İLE DİNLE (Doğal Türkçe)", command=_play_g2p,
+            ab_frame, text="▶️ Ava ile Dinle (Eğitilmiş)", command=_play_g2p,
             bg=C_MID, fg="#ffffff", activebackground=C_PRI, activeforeground=C_BG,
-            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=12, pady=5
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=12, pady=4
         ).pack(side="left", padx=(0, 6))
 
         tk.Button(
-            ab_frame, text="⏹️ DURDUR", command=self._stop_playback,
+            ab_frame, text="⏹️ Durdur", command=self._stop_playback,
             bg="#2a0d14", fg=C_RED, activebackground=C_RED, activeforeground=C_BG,
-            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=5
+            font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=4
         ).pack(side="left")
 
-        # 3. İsteğe Bağlı Özel İsimler (Opsiyonel Override)
-        opt_box = tk.LabelFrame(
-            lab, text=" 🏷️ İsteğe Bağlı Özel İsimler (Opsiyonel Override) ",
-            fg="#7ab8b2", bg=C_PANEL, font=("Segoe UI", 8)
+        # 3. Ava Harf ve Kelime Telaffuz Tablosu & Eğitici Form
+        table_box = tk.LabelFrame(
+            trainer, text=" 📝 Ava'ya Yeni Harf / Kelime Öğretme Masası ",
+            fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")
         )
-        opt_box.pack(fill="x", padx=16, pady=(0, 10))
+        table_box.pack(fill="both", expand=True, padx=16, pady=4)
 
-        tk.Label(
-            opt_box,
-            text="Not: Türkçe kelimeler için bir şey girmeniz gerekmez. Sadece oyun nickleri veya yabancı özel isimler içindir.",
-            fg="#5e8c87", bg=C_PANEL, font=("Segoe UI", 7)
-        ).pack(anchor="w", padx=8, pady=(2, 4))
+        frame_list = tk.Frame(table_box, bg=C_PANEL)
+        frame_list.pack(fill="both", expand=True, padx=8, pady=4)
 
-        form_sub = tk.Frame(opt_box, bg=C_PANEL)
-        form_sub.pack(fill="x", padx=8, pady=(0, 6))
+        columns = ("word", "phoneme")
+        tree = ttk.Treeview(frame_list, columns=columns, show="headings", height=6)
+        tree.heading("word", text="Kelime / Harf (Yazılan)")
+        tree.heading("phoneme", text="Ava'ya Okutulacak Şekil")
+        tree.column("word", width=220)
+        tree.column("phoneme", width=300)
+        tree.pack(side="left", fill="both", expand=True)
 
-        tk.Label(form_sub, text="Özel İsim:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8)).pack(side="left")
-        ent_name = tk.Entry(form_sub, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, width=14, font=("Segoe UI", 8))
-        ent_name.pack(side="left", padx=4)
+        scrollbar = ttk.Scrollbar(frame_list, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
 
-        tk.Label(form_sub, text="Okunuş:", fg=C_TEXT, bg=C_PANEL, font=("Segoe UI", 8)).pack(side="left", padx=(6, 0))
-        ent_read = tk.Entry(form_sub, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, width=16, font=("Segoe UI", 8))
-        ent_read.pack(side="left", padx=4)
+        def _refresh_tree():
+            tree.delete(*tree.get_children())
+            lex = load_lexicon()
+            for w, p in sorted(lex.items()):
+                tree.insert("", "end", values=(w, p))
 
-        def _save_opt_override():
-            n = ent_name.get().strip()
-            r = ent_read.get().strip()
-            if n and r:
-                set_pronunciation(n, r)
+        _refresh_tree()
+
+        form = tk.Frame(table_box, bg=C_PANEL, padx=4, pady=4)
+        form.pack(fill="x", padx=8, pady=(0, 4))
+
+        tk.Label(form, text="Yazılan:", fg=C_GOLD, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=0, sticky="w")
+        ent_word = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=18)
+        ent_word.grid(row=0, column=1, padx=4, pady=2, sticky="w")
+
+        tk.Label(form, text="Ava'nın Okuyacağı:", fg=C_PRI, bg=C_PANEL, font=("Segoe UI", 8, "bold")).grid(row=0, column=2, sticky="w", padx=(8, 0))
+        ent_phoneme = tk.Entry(form, bg="#031515", fg=C_TEXT, insertbackground=C_PRI, font=("Segoe UI", 9), width=24)
+        ent_phoneme.grid(row=0, column=3, padx=4, pady=2, sticky="w")
+
+        def _on_tree_select(event):
+            selected = tree.selection()
+            if selected:
+                item = tree.item(selected[0])
+                vals = item.get("values", [])
+                if len(vals) >= 2:
+                    ent_word.delete(0, "end")
+                    ent_word.insert(0, str(vals[0]))
+                    ent_phoneme.delete(0, "end")
+                    ent_phoneme.insert(0, str(vals[1]))
+
+        tree.bind("<<TreeviewSelect>>", _on_tree_select)
+
+        btn_box = tk.Frame(table_box, bg=C_PANEL)
+        btn_box.pack(fill="x", padx=8, pady=(0, 8))
+
+        def _add_or_update():
+            w = ent_word.get().strip()
+            p = ent_phoneme.get().strip()
+            if not w or not p:
+                messagebox.showwarning("Eksik Bilgi", "Lütfen hem yazılan kelimeyi hem de Ava'nın nasıl okuyacağını girin.", parent=trainer)
+                return
+            set_pronunciation(w, p)
+            _refresh_tree()
+            _refresh_test_preview()
+            self._update_phonetic_preview()
+            ent_word.delete(0, "end")
+            ent_phoneme.delete(0, "end")
+
+        def _delete_selected():
+            w = ent_word.get().strip()
+            if not w:
+                selected = tree.selection()
+                if selected:
+                    w = str(tree.item(selected[0])["values"][0])
+            if w:
+                remove_pronunciation(w)
+                _refresh_tree()
                 _refresh_test_preview()
                 self._update_phonetic_preview()
-                ent_name.delete(0, "end")
-                ent_read.delete(0, "end")
-                messagebox.showinfo("Kaydedildi", f"'{n}' için okunuş kaydedildi.", parent=lab)
+                ent_word.delete(0, "end")
+                ent_phoneme.delete(0, "end")
+
+        def _test_word():
+            p = ent_phoneme.get().strip() or ent_word.get().strip()
+            if not p:
+                return
+            threading.Thread(
+                target=lambda: self._synthesize_and_play_g2p(p, ava_vid),
+                daemon=True
+            ).start()
 
         tk.Button(
-            form_sub, text="Ekle", command=_save_opt_override,
-            bg="#0d2b28", fg=C_GOLD, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=8, pady=2
-        ).pack(side="left", padx=6)
+            btn_box, text="💾 Kuralı Kaydet & Ava'ya Öğret", command=_add_or_update,
+            bg=C_MID, fg="#ffffff", font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=4
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_box, text="🗑️ Seçiliyi Sil", command=_delete_selected,
+            bg="#2a0d14", fg=C_RED, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=4
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            btn_box, text="🔊 Ava ile Canlı Dinle", command=_test_word,
+            bg="#0f3b38", fg=C_GOLD, font=("Segoe UI", 8, "bold"), borderwidth=0, cursor="hand2", padx=10, pady=4
+        ).pack(side="right")
 
     def _synthesize_and_play_raw(self, text: str, voice_id: str):
         """Fonetik G2P normalizasyonu OLMADAN ham TTS sesini oynatır (A/B test için)."""
@@ -838,8 +830,9 @@ class VoiceStudioApp:
             except Exception:
                 pass
 
-    # Geriye dönük uyumluluk alias'ı
-    _open_pronunciation_trainer = _open_phonetic_lab
+    # Geriye dönük uyumluluk alias'ları
+    _open_phonetic_lab = _open_ava_trainer
+    _open_pronunciation_trainer = _open_ava_trainer
 
 
 def open_voice_studio(parent=None):
