@@ -396,6 +396,15 @@ def record_vad(
             total_chunks += 1
             is_speech = vad.is_speech(chunk, RATE)
 
+            # Barge-in Interruption Hook (EDITH konuşurken kullanıcı ses çıkardıysa)
+            try:
+                from core.barge_in_monitor import get_barge_in_monitor
+                barge = get_barge_in_monitor()
+                if barge.is_active:
+                    barge.check_audio_chunk(chunk)
+            except Exception:
+                pass
+
             if not triggered:
                 ring_buffer.append((chunk, is_speech))
                 num_voiced = len([f for f, speech in ring_buffer if speech])

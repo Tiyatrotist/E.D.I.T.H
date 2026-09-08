@@ -21,6 +21,10 @@ from pathlib import Path
 from typing import Callable, Optional
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+try:
+    import pygame
+except ImportError:
+    pygame = None
 
 # Windows konsol Unicode uyumluluğu
 if sys.platform == "win32":
@@ -87,6 +91,7 @@ class VoiceEngine:
     def __init__(self):
         self._is_speaking = False
         self._current_playback_proc = None
+        self._stop_event = threading.Event()
 
     @classmethod
     def get_instance(cls) -> VoiceEngine:
@@ -315,6 +320,13 @@ class VoiceEngine:
         """Ses dosyasını yerel ses donanımı üzerinden çalar (Pygame Mixer / Winsound)."""
         def _play():
             self._is_speaking = True
+            self._stop_event.clear()
+            try:
+                from core.barge_in_monitor import get_barge_in_monitor
+                get_barge_in_monitor().on_speech_started()
+            except Exception:
+                pass
+
             played = False
             try:
                 ext = Path(file_path).suffix.lower()
@@ -327,15 +339,22 @@ class VoiceEngine:
                     pygame.mixer.music.load(file_path)
                     pygame.mixer.music.play()
                     while pygame.mixer.music.get_busy():
-                        time.sleep(0.05)
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.unload()
+                        if self._stop_event.is_set():
+                            pygame.mixer.music.stop()
+                            break
+                        time.sleep(0.04)
+                    if not self._stop_event.is_set():
+                        pygame.mixer.music.stop()
+                    try:
+                        pygame.mixer.music.unload()
+                    except Exception:
+                        pass
                     played = True
                 except Exception as e_pg:
                     print(f"[VoiceEngine] Pygame mixer uyarısı: {e_pg}")
 
                 # 2. Öncelik: Windows yerel WAV fallback
-                if not played:
+                if not played and not self._stop_event.is_set():
                     if sys.platform == "win32" and ext == ".wav":
                         import winsound
                         winsound.PlaySound(file_path, winsound.SND_FILENAME)
@@ -349,6 +368,11 @@ class VoiceEngine:
                 print(f"[VoiceEngine] ⚠️ Oynatma hatası: {e}")
             finally:
                 self._is_speaking = False
+                try:
+                    from core.barge_in_monitor import get_barge_in_monitor
+                    get_barge_in_monitor().on_speech_ended()
+                except Exception:
+                    pass
                 if on_done:
                     try:
                         on_done()
@@ -364,13 +388,25 @@ class VoiceEngine:
 
     def stop(self) -> None:
         """Devam eden ses oynatmasını anında durdurur."""
+        self._stop_event.set()
         try:
             import pygame
             if pygame.mixer.get_init():
                 pygame.mixer.music.stop()
         except Exception:
             pass
+        if sys.platform == "win32":
+            try:
+                import winsound
+                winsound.PlaySound(None, winsound.SND_PURGE)
+            except Exception:
+                pass
         self._is_speaking = False
+        try:
+            from core.barge_in_monitor import get_barge_in_monitor
+            get_barge_in_monitor().on_speech_ended()
+        except Exception:
+            pass
 
     def speak(
         self,

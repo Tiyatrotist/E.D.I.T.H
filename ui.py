@@ -15,6 +15,7 @@ from PIL import Image, ImageTk
 from app_config import load_app_config, save_app_config
 from actions.weather import get_weather_summary
 from settings_dialog import SettingsDialog
+from ui_overlay import EdithFloatingReactor
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -627,6 +628,8 @@ class EdithUI:
         self._build_settings_panel()
         self._build_header_settings_btn()
         self._build_header_mobile_btn()
+        self.overlay = None
+        self._build_header_mini_hud_btn()
         self._build_voice_selector(self._settings_body)
         self._build_sfx_button(self._settings_body)
         self._build_api_button(self._settings_body)
@@ -647,6 +650,8 @@ class EdithUI:
         self.root.bind("<F12>",       lambda e: self._toggle_compact_mode())
         self.root.bind("<Control-comma>", lambda e: self.open_settings_dialog())
         self.root.bind("<F2>",            lambda e: self.open_settings_dialog())
+        self.root.bind("<Alt-space>",     lambda e: self.toggle_stealth_mode())
+        self.root.bind("<Alt-h>",         lambda e: self.toggle_stealth_mode())
 
         self._api_key_ready = True
 
@@ -1050,6 +1055,72 @@ class EdithUI:
         url = get_app_config_value("server_sync.server_url", "https://training-opportunity-experienced-million.trycloudflare.com")
         webbrowser.open(url)
         self.write_log(f"SYS: Mobil Web Asistanı tarayıcıda açıldı: {url}")
+
+    def _build_header_mini_hud_btn(self):
+        """Üst barda (Header) fütüristik Ark Reactor Mini HUD (Stealth Mode) butonu oluşturur."""
+        BW, BH = 120, 36
+        self._header_mini_hud_canvas = tk.Canvas(
+            self.root,
+            width=BW,
+            height=BH,
+            bg="#02080a",
+            highlightthickness=0,
+            cursor="hand2",
+        )
+
+        def _draw_btn(hover=False):
+            c = self._header_mini_hud_canvas
+            c.delete("all")
+            fill = "#1a1608" if hover else "#0d0f04"
+            outline = C_GOLD if hover else "#776600"
+            c.create_rectangle(0, 0, BW, BH, fill=fill, outline=outline, width=1)
+            bl = 7
+            for bx, by, sx, sy in [(0, 0, 1, 1), (BW, 0, -1, 1), (0, BH, 1, -1), (BW, BH, -1, -1)]:
+                c.create_line(bx, by, bx + sx * bl, by, fill=C_GOLD if hover else "#776600", width=2)
+                c.create_line(bx, by, bx, by + sy * bl, fill=C_GOLD if hover else "#776600", width=2)
+            c.create_text(BW // 2, BH // 2, text="⚛ MİNİ HUD", fill=C_GOLD if hover else "#ffe066", font=font_body_bold(10))
+
+        self._header_mini_hud_canvas.bind("<Enter>", lambda e: _draw_btn(True))
+        self._header_mini_hud_canvas.bind("<Leave>", lambda e: _draw_btn(False))
+        self._header_mini_hud_canvas.bind("<Button-1>", lambda e: self.toggle_stealth_mode())
+        _draw_btn(False)
+
+    def _get_overlay(self):
+        """Kompakt yüzen Ark Reactor Mini HUD örneğini döner veya ilk kez oluşturur."""
+        if getattr(self, "overlay", None) is None:
+            self.overlay = EdithFloatingReactor(
+                self.root,
+                on_restore=self.restore_from_stealth_mode,
+                on_toggle_mic=self._toggle_mute,
+            )
+            if hasattr(self, "_edith_state"):
+                self.overlay.set_state(self._edith_state)
+        return self.overlay
+
+    def toggle_stealth_mode(self):
+        """Fütüristik Mini HUD / Ark Reactor gizli modunu açar veya kapatır (Alt+Space)."""
+        overlay = self._get_overlay()
+        if overlay.is_visible:
+            self.restore_from_stealth_mode()
+        else:
+            self.enter_stealth_mode()
+
+    def enter_stealth_mode(self):
+        """Ana UI penceresini gizleyip yarı saydam Ark Reactor widget'ını gösterir."""
+        self.root.withdraw()
+        overlay = self._get_overlay()
+        overlay.set_state(getattr(self, "_edith_state", "LISTENING"))
+        overlay.show()
+        self.write_log("SYS: Ark Reactor Mini HUD devrede (Alt+Space ile tam ekrana dön).")
+
+    def restore_from_stealth_mode(self):
+        """Ark Reactor widget'ını gizleyip ana UI penceresini geri getirir."""
+        if getattr(self, "overlay", None):
+            self.overlay.hide()
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        self.write_log("SYS: Ana HUD ekranına dönüldü.")
 
     def open_settings_dialog(self):
         """Gelişmiş Ayarlar Penceresini (SettingsDialog) açar."""
@@ -1681,8 +1752,12 @@ class EdithUI:
         self._draw_mute_button()
         if self.muted:
             self.write_log("SYS: Mikrofon kapatıldı.")
+            if getattr(self, "overlay", None):
+                self.overlay.set_state("MUTED")
         else:
             self.write_log("SYS: Mikrofon açık.")
+            if getattr(self, "overlay", None):
+                self.overlay.set_state(getattr(self, "_edith_state", "LISTENING"))
         self._sync_sound_state()
 
     # ── Orb tıklama = pause ──────────────────────────────────────────────────
@@ -1706,6 +1781,11 @@ class EdithUI:
             threading.Thread(target=self.on_pause_toggle, args=(self.paused,), daemon=True).start()
 
     def _shutdown(self):
+        if getattr(self, "overlay", None):
+            try:
+                self.overlay.destroy()
+            except Exception:
+                pass
         self.sound.stop_all()
         self.write_log("SYS: EDITH kapatılıyor...")
         self.root.after(380, os._exit, 0)
@@ -1829,21 +1909,29 @@ class EdithUI:
                 mob_btn_x = max(5, self.W - 240)
                 self._header_mobile_canvas.place(x=mob_btn_x, y=8, width=110, height=30)
                 tk.Misc.lift(self._header_mobile_canvas)
+            if hasattr(self, "_header_mini_hud_canvas"):
+                mini_btn_x = max(5, self.W - 360)
+                self._header_mini_hud_canvas.place(x=mini_btn_x, y=8, width=110, height=30)
+                tk.Misc.lift(self._header_mini_hud_canvas)
 
             inp_w = self.W - pad * 2 - 76 - 8
             self._input_entry.place(x=pad, y=self.H - pad - INPUT_H, width=max(140, inp_w), height=INPUT_H)
             self._send_btn.place(x=pad + max(140, inp_w) + 8, y=self.H - pad - INPUT_H, width=76, height=INPUT_H)
             return
 
-        # Üst barda (Header) sağ tarafa Ayarlar & Mobil Web Butonlarını yerleştir
+        # Üst barda (Header) sağ tarafa Ayarlar & Mobil Web & Mini HUD Butonlarını yerleştir
         if hasattr(self, "_header_settings_canvas"):
-            hdr_btn_x = max(240, self.W - 145)
+            hdr_btn_x = max(380, self.W - 145)
             self._header_settings_canvas.place(x=hdr_btn_x, y=18, width=120, height=36)
             tk.Misc.lift(self._header_settings_canvas)
         if hasattr(self, "_header_mobile_canvas"):
-            mob_btn_x = max(110, self.W - 280)
+            mob_btn_x = max(250, self.W - 280)
             self._header_mobile_canvas.place(x=mob_btn_x, y=18, width=126, height=36)
             tk.Misc.lift(self._header_mobile_canvas)
+        if hasattr(self, "_header_mini_hud_canvas"):
+            mini_btn_x = max(120, self.W - 415)
+            self._header_mini_hud_canvas.place(x=mini_btn_x, y=18, width=120, height=36)
+            tk.Misc.lift(self._header_mini_hud_canvas)
 
         self.log_frame.place(x=self.CHAT_X, y=self.CHAT_Y, width=self.CHAT_W, height=self.CHAT_H)
         gap = 12
@@ -1938,6 +2026,8 @@ class EdithUI:
             previous = getattr(self, "_edith_state", "")
             self._edith_state = state
             self.speaking = (state == "SPEAKING")
+            if getattr(self, "overlay", None):
+                self.overlay.set_state(state)
             if state == "THINKING":
                 self.sound.start_thinking()
             elif previous == "THINKING":

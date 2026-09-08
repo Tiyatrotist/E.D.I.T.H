@@ -266,6 +266,21 @@ class EdithLive:
         self.activity_supervisor = get_activity_supervisor()
         self.last_user_interaction_time = time.monotonic()
 
+        # Söz Kesme ve Çift Yönlü Ses (Barge-in Monitor)
+        try:
+            from core.barge_in_monitor import get_barge_in_monitor
+            self.barge_in_monitor = get_barge_in_monitor()
+            self.barge_in_monitor.set_interruption_callback(self._on_barge_in_interrupted)
+        except Exception as e:
+            print(f"[Main] ⚠️ BargeInMonitor başlatılamadı: {e}")
+
+    def _on_barge_in_interrupted(self, reason: str):
+        """EDITH konuşurken kullanıcı söz kestiğinde çağrılır."""
+        print(f"[Main] 🛑 Söz kesildi: {reason}")
+        self.set_speaking(False)
+        self.ui.write_log(f"⚡ [Söz Kesildi]: {reason}")
+        self.ui.set_state("LISTENING")
+
     def set_speaking(self, val: bool):
         with self._speaking_lock:
             self._is_speaking = val
@@ -1159,6 +1174,16 @@ class EdithLive:
                 if speech_text:
                     self.ui.write_log(f"Siz: {speech_text}")
                     print(f"[EDITH] 🎙️ STT: {speech_text}")
+                    # Söz kesme anahtar kelimesi kontrolü
+                    try:
+                        from core.barge_in_monitor import get_barge_in_monitor
+                        if get_barge_in_monitor().check_text_interruption(speech_text):
+                            self.set_speaking(False)
+                            self.ui.write_log("⚡ [Söz Kesildi]")
+                            self.ui.set_state("LISTENING")
+                            continue
+                    except Exception:
+                        pass
                     await self._handle_command(speech_text)
                     self.ui.set_state("LISTENING")
 
