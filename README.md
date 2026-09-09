@@ -85,22 +85,6 @@
 
 ---
 
-## 🧠 Obsidian Second Brain & Zettelkasten Architecture
-
-EDITH organizes research, daily morning briefings, incoming call transcripts, and atomic ideas into an **Obsidian-compatible, open, and local Markdown** second brain.
-
-- 🗂️ **Zettelkasten Directory Structure:**
-  - `Daily/` — Executive daily journal (`YYYY-MM-DD.md`), morning health reports, and call summaries.
-  - `Concepts/` — Atomic ideas, definitions, mental models, and flashcards.
-  - `Projects/` — Project roadmaps, architectural milestones, and actionable tasks.
-  - `Resources/` — Web research digests, articles, bookmarks, and references.
-- 🔗 **Automated Wikilinks & YAML Frontmatter:** Contextual cross-links between notes using `[[Concept Name]]` and standard YAML frontmatter metadata.
-- 🌐 **Web Dashboard Integration:** Real-time Vault telemetry, rapid note capture, and instant weighted search at `http://localhost:8080`.
-- 📊 **Interactive Knowledge Graph:** Visualizes all note relations with node/edge topology compatible with Obsidian's Graph View.
-- 📖 For complete architectural details and REST API specs, refer to [docs/OBSIDIAN_SECOND_BRAIN.md](docs/OBSIDIAN_SECOND_BRAIN.md).
-
----
-
 ## ⚡ Quick Installation & Setup
 
 For full setup documentation, see [INSTALLATION.md](INSTALLATION.md).
@@ -131,6 +115,20 @@ Fine-tune EDITH's warm holographic female voice, speech rate, pitch, and Stark H
 ```bash
 python voice_studio.py
 ```
+
+## 🧠 Obsidian Second Brain & Zettelkasten Architecture
+
+EDITH organizes research, daily morning briefings, incoming call transcripts, and atomic ideas into an **Obsidian-compatible, open, and local Markdown** second brain.
+
+- 🗂️ **Zettelkasten Directory Structure:**
+  - `Daily/` — Executive daily journal (`YYYY-MM-DD.md`), morning health reports, and call summaries.
+  - `Concepts/` — Atomic ideas, definitions, mental models, and flashcards.
+  - `Projects/` — Project roadmaps, architectural milestones, and actionable tasks.
+  - `Resources/` — Web research digests, articles, bookmarks, and references.
+- 🔗 **Automated Wikilinks & YAML Frontmatter:** Contextual cross-links between notes using `[[Concept Name]]` and standard YAML frontmatter metadata.
+- 🌐 **Web Dashboard Integration:** Real-time Vault telemetry, rapid note capture, and instant weighted search at `http://localhost:8080`.
+- 📊 **Interactive Knowledge Graph:** Visualizes all note relations with node/edge topology compatible with Obsidian's Graph View.
+- 📖 For complete architectural details and REST API specs, refer to [docs/OBSIDIAN_SECOND_BRAIN.md](docs/OBSIDIAN_SECOND_BRAIN.md).
 
 ---
 
