@@ -452,3 +452,17 @@ def listen_for_speech(language: str = "tr", silence_timeout: float = 1.2, max_du
     except Exception as e:
         print(f"[STT] Dinleme hatası: {e}", file=sys.stderr)
         return ""
+
+
+def listen_for_wake_or_speech(language: str = "tr", silence_timeout: float = 0.9, max_duration: float = 6.0) -> str:
+    """
+    Kısa süreli uyanma kelimesi veya takip komutu dinleme fonksiyonu.
+    Daha hızlı yanıt için daha kısa VAD sessizlik zaman aşımı (0.9s) kullanır.
+    """
+    try:
+        text = record_vad(language=language, silence_timeout=silence_timeout, max_duration=max_duration)
+        return (text or "").strip()
+    except Exception as e:
+        print(f"[STT] Wake/speech listening error: {e}", file=sys.stderr)
+        return ""
+

@@ -617,6 +617,39 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 <div style="color:var(--text-dim); text-align:center; padding:8px;">Notlar yükleniyor...</div>
             </div>
         </div>
+
+        <!-- ⚡ Sesli Uyandırma (Always-On Wake Word) Kartı (Phase 15) -->
+        <div class="card" style="border-color: rgba(0, 212, 192, 0.4); background: linear-gradient(180deg, rgba(2, 16, 20, 0.7) 0%, rgba(4, 8, 12, 0.9) 100%);">
+            <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>⚡ Sesli Uyandırma (Wake Word)</span>
+                <span id="wakeword-badge" style="font-size:10px; color:var(--primary); cursor:pointer;" onclick="loadWakeWordStatus()">Yenile ↻</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:12px; line-height:1.4;">
+                Bilgisayara dokunmadan seslenin: <b>"EDITH"</b> veya <b>"Hey EDITH"</b> uyanma kelimeleriyle eller serbest kontrol.
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:12px;">
+                <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,212,192,0.2); border-radius:8px; padding:8px; text-align:center;">
+                    <div style="font-size:10px; color:var(--text-dim);">Aktif Çalışma Modu</div>
+                    <div id="wakeword-mode-display" style="font-size:13px; font-weight:bold; color:var(--primary); margin-top:2px;">WAKE_WORD</div>
+                </div>
+                <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,212,192,0.2); border-radius:8px; padding:8px; text-align:center;">
+                    <div style="font-size:10px; color:var(--text-dim);">Toplam Uyanma Sayısı</div>
+                    <div id="wakeword-count-display" style="font-size:13px; font-weight:bold; color:#facc15; margin-top:2px;">0</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <select id="wakeword-mode-select" style="flex:1; background:#041414; border:1px solid rgba(0,212,192,0.4); border-radius:6px; color:var(--primary); font-size:11px; padding:6px;">
+                    <option value="wake_word">⚡ Wake Word ("Hey EDITH")</option>
+                    <option value="always_listen">🎙️ Sürekli Dinle (Always Listen)</option>
+                    <option value="push_to_talk">🔇 Bas-Konuş (Push to Talk)</option>
+                </select>
+                <button class="ctrl-btn" style="border-color:var(--primary); padding:6px 12px; font-size:11px;" onclick="changeWakeWordMode()">Kaydet</button>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button id="wakeword-toggle-btn" class="ctrl-btn" style="flex:1; border-color:#06b6d4; padding:6px 10px; font-size:11px;" onclick="toggleWakeWord()">⚡ Aç / Kapat</button>
+                <button class="ctrl-btn" style="flex:1; border-color:#facc15; padding:6px 10px; font-size:11px; color:#facc15;" onclick="testWakeWord()">🔔 Uyanma Testi (Chime)</button>
+            </div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -1565,6 +1598,76 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 const d = await res.json();
                 if (d.status === 'ok') appendMsg('sys', '⚙️ Mod Değiştirildi: ' + newMode.toUpperCase());
             } catch(e) {}
+        }
+
+        // ── 7. ALWAYS-ON WAKE WORD & SESLİ UYANDIRMA ─────────────────────────
+        async function loadWakeWordStatus() {
+            try {
+                const res = await fetch('/api/wakeword/status');
+                const data = await res.json();
+                if (data.status === 'ok' && data.wakeword) {
+                    const w = data.wakeword;
+                    const modeEl = document.getElementById('wakeword-mode-display');
+                    const countEl = document.getElementById('wakeword-count-display');
+                    const selEl = document.getElementById('wakeword-mode-select');
+                    const btnEl = document.getElementById('wakeword-toggle-btn');
+                    if (modeEl) modeEl.innerText = (w.mode || 'WAKE_WORD').toUpperCase();
+                    if (countEl) countEl.innerText = w.total_wakes || 0;
+                    if (selEl && w.mode) selEl.value = w.mode;
+                    if (btnEl) {
+                        btnEl.innerText = w.enabled ? '⚡ Aktif (Kapat)' : '💤 Devre Dışı (Aç)';
+                        btnEl.style.color = w.enabled ? 'var(--primary)' : 'var(--danger)';
+                    }
+                }
+            } catch(e) {}
+        }
+        setTimeout(loadWakeWordStatus, 2000);
+        setInterval(loadWakeWordStatus, 10000);
+
+        async function changeWakeWordMode() {
+            const selEl = document.getElementById('wakeword-mode-select');
+            if (!selEl) return;
+            const mode = selEl.value;
+            try {
+                const res = await fetch('/api/wakeword/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: mode })
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', '⚡ Wake Word Modu Güncellendi: ' + mode.toUpperCase());
+                    loadWakeWordStatus();
+                }
+            } catch(e) {
+                alert("Mod değiştirme hatası: " + e);
+            }
+        }
+
+        async function toggleWakeWord() {
+            try {
+                const res = await fetch('/api/wakeword/toggle', { method: 'POST' });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', d.enabled ? '⚡ Sesli Uyandırma Devreye Alındı' : '💤 Sesli Uyandırma Kapatıldı');
+                    loadWakeWordStatus();
+                }
+            } catch(e) {
+                alert("Durum değiştirme hatası: " + e);
+            }
+        }
+
+        async function testWakeWord() {
+            try {
+                const res = await fetch('/api/wakeword/test', { method: 'POST' });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', '🔔 Uyanma Sesi Çalındı (HUD Wake Chime)');
+                    loadWakeWordStatus();
+                }
+            } catch(e) {
+                alert("Test hatası: " + e);
+            }
         }
 
         // ── 5. ÇAĞRILAR & SEKRETER ──────────────────────────────────────────
@@ -2983,6 +3086,69 @@ async def phone_simulate():
             pass
 
     return {"reply": reply}
+
+
+# ── ALWAYS-ON WAKE WORD APIS (RULE 8 & PHASE 15) ─────────────────────────────
+@app.get("/api/wakeword/status")
+async def get_wakeword_status():
+    """Wake Word Detector durumunu ve telemetrisini döner."""
+    try:
+        from core.wake_word import get_wake_word_detector
+        detector = get_wake_word_detector()
+        return {"status": "ok", "wakeword": detector.get_status()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/wakeword/mode")
+async def post_wakeword_mode(request: Request):
+    """Wake Word çalışma modunu günceller ('wake_word', 'always_listen', 'push_to_talk')."""
+    try:
+        data = await request.json()
+        mode = str(data.get("mode") or "wake_word").strip().lower()
+        from core.wake_word import get_wake_word_detector
+        detector = get_wake_word_detector()
+        detector.set_mode(mode)
+        return {"status": "ok", "mode": detector.mode}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/wakeword/toggle")
+async def post_wakeword_toggle(request: Request = None):
+    """Wake Word aktif/pasif durumunu değiştirir."""
+    try:
+        from core.wake_word import get_wake_word_detector
+        detector = get_wake_word_detector()
+        if request:
+            try:
+                data = await request.json()
+                if "enabled" in data:
+                    detector.enabled = bool(data["enabled"])
+                else:
+                    detector.enabled = not detector.enabled
+            except Exception:
+                detector.enabled = not detector.enabled
+        else:
+            detector.enabled = not detector.enabled
+        return {"status": "ok", "enabled": detector.enabled}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/wakeword/test")
+async def post_wakeword_test():
+    """Uyanma sesini (HUD Wake Chime) çalar ve test tetiklemesi yapar."""
+    try:
+        from core.audio_feedback import get_audio_feedback
+        from core.wake_word import get_wake_word_detector
+        detector = get_wake_word_detector()
+        detector._total_wakes += 1
+        detector._last_wake_timestamp = time.time()
+        get_audio_feedback().play_wake_chime()
+        return {"status": "ok", "message": "Wake chime triggered", "total_wakes": detector._total_wakes}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 def start_dashboard(host: str = "0.0.0.0", port: int = 8080) -> None:

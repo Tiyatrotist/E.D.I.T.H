@@ -277,6 +277,21 @@ class EdithLive:
         except Exception as e:
             print(f"[Main] ⚠️ BargeInMonitor başlatılamadı: {e}")
 
+        # Kesintisiz Sesli Uyandırma (Always-On Wake Word)
+        try:
+            from core.wake_word import get_wake_word_detector
+            self.wake_detector = get_wake_word_detector()
+            self.wake_detector.set_speaking_checker(lambda: self._is_speaking)
+            self.wake_detector.set_wake_callback(self._on_wake_word_detected)
+        except Exception as e:
+            print(f"[Main] ⚠️ WakeWordDetector başlatılamadı: {e}")
+            self.wake_detector = None
+
+    def _on_wake_word_detected(self, keyword: str, payload: str):
+        """Uyanma kelimesi algılandığında UI ve HUD güncellemesi."""
+        self.ui.write_log(f"⚡ [WAKE WORD]: '{keyword}' algılandı!")
+        self.ui.set_state("LISTENING")
+
     def _on_barge_in_interrupted(self, reason: str):
         """EDITH konuşurken kullanıcı söz kestiğinde çağrılır."""
         print(f"[Main] 🛑 Söz kesildi: {reason}")
@@ -1257,6 +1272,31 @@ class EdithLive:
                     continue
 
                 if speech_text:
+                    # Kesintisiz Sesli Uyandırma (Wake Word) değerlendirmesi
+                    if hasattr(self, "wake_detector") and self.wake_detector and self.wake_detector.enabled:
+                        is_wake, matched_kw, payload = self.wake_detector.check_wake_text(speech_text)
+                        if not is_wake:
+                            # Uyanma kelimesi eşleşmedi, ortam gürültüsünü yok say
+                            await asyncio.sleep(0.05)
+                            continue
+
+                        # Uyanma kelimesi tetiklendi
+                        if payload:
+                            # Tek nefeste komut (One-Shot: "Hey EDITH saat kaç" -> "saat kaç")
+                            speech_text = payload
+                        else:
+                            # Kullanıcı yalnızca "Hey EDITH" dedi, takip komutunu bekle
+                            self.ui.write_log(f"🎙️ [EDITH Dinliyor...]")
+                            self.ui.set_state("LISTENING")
+                            followup = await asyncio.to_thread(self._listen_until_silence)
+                            if not followup:
+                                # Komut gelmedi, zaman aşımı çanı çal ve bekleme durumuna dön
+                                from core.audio_feedback import get_audio_feedback
+                                get_audio_feedback().play_dismiss_chime()
+                                self.ui.set_state("IDLE")
+                                continue
+                            speech_text = followup
+
                     self.ui.write_log(f"Siz: {speech_text}")
                     print(f"[EDITH] 🎙️ STT: {speech_text}")
                     # Söz kesme anahtar kelimesi kontrolü

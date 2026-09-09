@@ -192,6 +192,15 @@ DEFAULT_OBSIDIAN = {
     "auto_call_log": True,
 }
 
+DEFAULT_WAKE_WORD = {
+    "enabled": True,
+    "mode": "wake_word",  # "wake_word", "always_listen", "push_to_talk"
+    "keywords": ["edith", "hey edith", "hey edit", "edit", "edis", "hey edis", "ey edith"],
+    "cooldown_seconds": 1.5,
+    "play_chime": True,
+    "timeout_seconds": 6.0,
+}
+
 DEFAULT_CONFIG = {
     "app_role": "client",  # "client" (Windows PC) veya "server" (Oracle Cloud VPS)
     "active_provider": "nim",
@@ -202,6 +211,7 @@ DEFAULT_CONFIG = {
     "discord": DEFAULT_DISCORD,
     "server_sync": DEFAULT_SERVER_SYNC,
     "obsidian": DEFAULT_OBSIDIAN,
+    "wake_word": DEFAULT_WAKE_WORD,
     # Geriye dönük uyumluluk ve genel ayarlar:
     "gemini_api_key": "",
     "voice": "Charon",

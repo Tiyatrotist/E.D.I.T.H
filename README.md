@@ -27,6 +27,7 @@
 - 🌐 **Web Control Dashboard (PWA):** Live hardware telemetry, remote chat, operating mode selector, and device control from PC or mobile at `http://localhost:8080`.
 - 🤖 **Stark Industries Human-Like Discord Bot:** Chat naturally without robotic AI clichés, send attachments/images for vision inspection, join voice channels, and receive instant rich embeds when phone calls end.
 - 🧠 **Obsidian Second Brain (Zettelkasten Knowledge Graph):** 100% local, open, and portable Markdown architecture organizing atomic concept notes (`Concepts/`), daily executive logs (`Daily/YYYY-MM-DD.md`), projects, and resources (`Projects/`, `Resources/`). Features automated bidirectional Wikilinks, YAML frontmatter, interactive knowledge graph, and full control via the Web Dashboard.
+- ⚡ **Always-On Wake Word Engine ("Hey EDITH"):** 100% offline hands-free activation with Stark HUD acoustic feedback, one-shot utterance parsing (*"Hey EDITH, what time is it?"*), and anti-retrigger cooldown.
 - 🎙️ **Warm Female Voice & Acoustic Voice Studio:** Hybrid speech engine utilizing Edge-TTS (`tr-TR-EmelNeural` / `en-US-JennyNeural`) with warm holographic filtering and Piper Neural (`tr_TR-dfki-medium` / `en_US-amy-medium`) for offline synthesis. Dedicated Voice Studio GUI for acoustic fine-tuning.
 
 ---
@@ -82,6 +83,7 @@
 | **System Telemetry** | `psutil` / NVML `ctypes` / WMI | Subprocess-free CPU, RAM, GPU, network, and temperature monitoring. |
 | **Desktop Automation** | `pygetwindow` / `pyautogui` / Shell | Zero-permission Instagram DM, WhatsApp, window focus, volume, and media keys. |
 | **Obsidian Second Brain** | Obsidian Markdown / Zettelkasten | Connected knowledge graph, daily note journaling, web archiving, and LLM tool integration. |
+| **Always-On Wake Word** | Lightweight Keyword Spotter / VAD | Zero-click hands-free activation, one-shot command separation, and Stark HUD acoustic chime. |
 
 ---
 
