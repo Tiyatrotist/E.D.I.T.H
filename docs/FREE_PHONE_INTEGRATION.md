@@ -1,87 +1,85 @@
-# E.D.I.T.H — Termux + Termux:API Telefon Entegrasyonu Rehberi
+# E.D.I.T.H — Android Termux + Termux:API Phone Integration Guide
 
-Bu rehber, Android telefonunuzdaki **Termux** ve **Termux:API** araçlarını kullanarak EDITH masaüstü asistanınızla tam uyumlu çalışan, sıfır maliyetli ve açık kaynaklı telefon köprüsünü kurmanızı sağlar.
+This guide details how to set up the **100% open-source, zero-cost, privacy-first** mobile phone bridge using **Termux** and **Termux:API** on Android to synchronize calls, notifications, battery telemetry, and autonomous secretary functions with E.D.I.T.H.
 
 ---
 
-## 🚀 Hızlı Başlangıç (Tek Komutla Kurulum)
+## 🚀 Quick Start (One-Line Setup)
 
-Telefonunuz ile bilgisayarınızın aynı Wi-Fi ağına bağlı olduğundan emin olun.
+Ensure your Android phone and PC are connected to the same local Wi-Fi network.
 
-Telefonunuzda **Termux** uygulamasını açın ve şu tek satırlık komutu yapıştırıp `Enter` tuşuna basın:
+Open the **Termux** application on your phone and run the following command:
 
 ```bash
 curl -s http://172.26.72.238:8080/api/termux/setup | bash
 ```
 
-*(Not: Bilgisayarınızın IP adresi değişirse komuttaki `172.26.72.238` yerine yeni IP'yi yazabilirsiniz)*
+*(Note: If your PC's local IP address changes, replace `172.26.72.238` with your current host IP address)*
 
-Bu komut:
-1. Gerekli paketleri (`termux-api`, `python`, `jq`, `curl`) otomatik kontrol eder/kurar.
-2. `~/edith/edith_phone.py` köprüsünü bilgisayarınızdan indirir.
-3. Arka plan çağrı dinleyicisini başlatır ve telefonunuza bir başlangıç bildirimi (toast) gönderir.
-
----
-
-## 📋 Gerekli Android İzinleri (Önemli!)
-
-Termux'un çağrıları ve bildirimleri yakalayabilmesi için **Termux:API** uygulamasının şu Android izinlerine sahip olması gerekir:
-
-1. **Bildirim Erişimi (Notification Access):**
-   - Android Ayarları → **Uygulamalar ve Bildirimler** → **Özel Uygulama Erişimi** → **Bildirim Erişimi**
-   - **Termux:API** seçeneğini **Açık / İzin Verildi** yapın.
-2. **Telefon ve Arama İzni:**
-   - Android Ayarları → **Uygulamalar** → **Termux:API** → **İzinler**
-   - **Telefon (Phone)** ve **Kişiler (Contacts)** izinlerini verin.
-3. **Pil Optimizasyonunu Devre Dışı Bırakma:**
-   - Termux'un ekran kapalıyken uyutulmaması için: Termux bildirim çubuğunda `Acquire Wakelock` butonuna basabilir veya Android Ayarlarında Termux için *Pil Optimizasyonunu Kapat* yapabilirsiniz.
+This script automatically:
+1. Verifies and installs necessary packages (`termux-api`, `python`, `jq`, `curl`).
+2. Downloads `~/edith/edith_phone.py` from your PC.
+3. Launches the background phone listener and displays a startup toast notification on your device.
 
 ---
 
-## ⚡ Özellikler ve Çalışma Mantığı
+## 📋 Required Android Permissions
 
-### 1. Canlı Çağrı Algılama ve Masaüstü Uyarısı
-- Birisi aradığında telefonunuz çalar çalmaz Termux bunu 0.8 saniye içinde yakalar.
-- Bilgisayarınızdaki EDITH hoparlörden sesli olarak:
-  > *"Buğra, telefonun çalıyor. Ahmet arıyor!"*
-  diye uyarır ve sol HUD telemetri panelinde `PHONE_RING` kaydı oluşturur.
+For Termux to monitor calls and system telemetry, grant the following permissions to **Termux:API**:
 
-### 2. Tam Kapanmadan Önce Otomatik Cevaplama (14 Saniye Kuralı)
-- Siz telefonunuza uzanamazsanız veya 14 saniye boyunca telefonu açmazsanız:
-  - Termux çağrıyı otomatik olarak cevaplar (`input keyevent 79`).
-  - Telefonun hoparlöründen Türkçe TTS sesiyle EDITH konuşur:
-    > *"Merhaba, ben Buğra'nın asistanı EDITH. Ahmet, nasıl yardımcı olabilirim? Lütfen notunuzu bırakın."*
-
-### 3. Arama Bittiğinde Masaüstü Özeti & Discord Bildirimi
-- Görüşme tamamlandığında EDITH bilgisayarınızda sesli anons geçer:
-  > *"Buğra, az önce Ahmet aradı. Bıraktığı not: Yarınki toplantı saat 14:00'te."*
-- Arama notu `memory/chat_history.json` ve `memory/call_logs.json` dosyalarına kalıcı işlenir.
-- Kullanıcı dilediği zaman *"Beni kimler aradı?"* veya *"Telefon notlarım var mı?"* diye sorduğunda EDITH anında yanıtlar.
-
-### 4. Telefon Şarj Seviyesi Takibi
-- Termux her 3 dakikada bir batarya durumunu bilgisayara iletir.
-- EDITH'e *"Telefonumun şarjı kaç?"* veya *"Telefonumun pili yüzde kaç?"* diye sorduğunuzda anlık durumu bildirir.
+1. **Notification Access:**
+   - Android Settings → **Apps & Notifications** → **Special App Access** → **Notification Access**
+   - Enable **Termux:API** (`Allowed`).
+2. **Phone & Contacts Permissions:**
+   - Android Settings → **Apps** → **Termux:API** → **Permissions**
+   - Grant **Phone** and **Contacts** permissions.
+3. **Battery Optimization Bypass:**
+   - Prevent Android from sleeping Termux in background: Tap `Acquire Wakelock` in the Termux notification drawer, or set Battery Optimization to *Unrestricted* in Android Settings.
 
 ---
 
-## 🛠️ Manuel Çalıştırma Seçenekleri
+## ⚡ Features & Operational Logic
 
-### Python ile Çalıştırma:
+### 1. Real-Time Call Detection & Desktop Alert
+- When an incoming call occurs, Termux detects the ring event in under 0.8 seconds.
+- E.D.I.T.H speaks over your PC speakers:
+  > *"Sir, incoming call from John Doe."*
+  and logs a `PHONE_RING` event in the left HUD telemetry panel.
+
+### 2. 14-Second Delayed Auto-Answer (Secretary Rule)
+- If you do not answer within 14 seconds:
+  - Termux automatically answers the call (`input keyevent 79`).
+  - E.D.I.T.H speaks through the phone speaker using TTS:
+    > *"Hello. I am EDITH, AI assistant to Bugra. Bugra is currently unavailable. Please leave a message and I will forward it immediately."*
+
+### 3. Desktop Summary & Call Journaling
+- Once the call terminates, E.D.I.T.H provides a spoken voice briefing on PC:
+  > *"Sir, John Doe just called. Note left: Tomorrow's meeting is at 2 PM."*
+- The call summary is automatically appended to `Daily/YYYY-MM-DD.md` in the Obsidian Second Brain and persisted to `memory/call_logs.json`.
+
+### 4. Battery Telemetry & Monitoring
+- Termux reports device battery status every 3 minutes.
+- Asking *"What is my phone's battery level?"* triggers an immediate report on current percentage and charging status.
+
+---
+
+## 🛠️ Manual Execution Options
+
+### Running via Python:
 ```bash
 cd ~/edith
 python edith_phone.py
 ```
 
-### Bash ile Çalıştırma (Python olmadan):
+### Running via Bash (Without Python):
 ```bash
 curl -s http://172.26.72.238:8080/api/termux/edith_phone.sh | bash
 ```
 
 ---
 
-## 🔍 Test ve Doğrulama
-Köprünün çalışıp çalışmadığını bilgisayarınızdan test etmek için:
+## 🔍 Verification & Testing
+Run automated unit and integration tests from your PC:
 ```powershell
-python tests/test_fix_verification.py
+pytest tests/
 ```
-komutunu çalıştırabilirsiniz (Tüm testler ve API uç noktaları doğrulanmıştır).

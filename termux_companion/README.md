@@ -1,71 +1,70 @@
-# 📱 E.D.I.T.H — Android Termux Companion (Telefon Entegrasyonu)
+# 📱 E.D.I.T.H — Android Termux Companion (Phone Integration)
 
-Bu dizin, E.D.I.T.H projesinin Android telefon entegrasyonu için geliştirilmiş **%100 açık kaynaklı, sıfır ücretli ve hafif** arka plan dinleyicisini içerir.
+This directory contains the **100% open-source, zero-cost, lightweight** background daemon for Android phone integration with E.D.I.T.H.
 
 > [!IMPORTANT]
-> **Kural 4 Standartı:** MacroDroid gibi ücret veya abonelik talep eden üçüncü parti kısıtlı araçlar kesinlikle kullanılmaz. Android entegrasyonu tamamen açık kaynaklı Termux ve Termux:API standardı üzerine kuruludur.
+> **Open Source Standard:** Third-party paid or subscription automation tools (such as MacroDroid) are strictly excluded. The phone companion is entirely built on open-source Termux and Termux:API.
 
 ---
 
-## ⚡ Temel Yetenekler
+## ⚡ Key Capabilities
 
-1. **Sıfır Yapılandırma (Zero-Config UDP Discovery):**
-   - Telefon ve bilgisayar aynı Wi-Fi / yerel ağa bağlı olduğunda elle IP adresi yazmanıza gerek kalmaz. UDP Port `54545` üzerinden EDITH bilgisayarı saniyeler içinde otomatik olarak bulunur ve bağlanılır.
-2. **Gecikmeli Otomatik Karşılama (14 Saniye Kuralı):**
-   - Gelen çağrılarda telefon çalar çalmaz anında açılmaz.
-   - Kullanıcının bizzat açabilmesi için **14 saniye** beklenir.
-   - Eğer 14 saniye içinde kullanıcı açmazsa, arama tam kapanmadan hemen önce otomatik olarak cevaplanır ve EDITH sekreter karşılama konuşması yapar:
-     > *"Merhaba efendim. Ben Buğra'nın yapay zeka asistanı EDITH. Buğra şu anda çağrınıza doğrudan yanıt veremiyor. Lütfen notunuzu belirtiniz; kendisine ivedilikle ileteceğim."*
-3. **Masaüstü Sesli Bildirimi:**
-   - Telefon çaldığında veya yeni bir SMS geldiğinde bilgisayar hoparlöründen Türkçe sesli anons yapılır (`VoiceEngine: tr-TR-EmelNeural`).
-   - Arama sona erdiğinde özet çağrı geçmişine (`memory/call_logs.json`) kaydedilir.
-4. **Çift Yönlü Donanım Kontrolü:**
-   - Bilgisayardan sesli komutla veya Mobil Web PWA Dashboard üzerinden telefona doğrudan komut verilebilir:
-     - *"Ahmet'e SMS gönder: 10 dakikaya oradayım."*
-     - *"Telefonun fenerini aç / kapat."*
-     - *"Telefonun şarjı ne kadar?"*
-     - *"Telefonun konumunu göster."*
+1. **Zero-Configuration UDP Discovery:**
+   - When phone and PC share the same Wi-Fi / local network, manual IP entry is unnecessary. The daemon discovers the host PC via UDP Port `54545` automatically within seconds.
+2. **Delayed Auto-Answer (14-Second Secretary Rule):**
+   - Incoming calls are not answered immediately to give the user time to answer personally.
+   - If unanswered after **14 seconds**, the call is answered right before carrier timeout, and E.D.I.T.H delivers a greeting:
+     > *"Hello. I am EDITH, AI assistant to Bugra. Bugra is currently unavailable. Please leave a message and I will forward it to him immediately."*
+3. **Desktop Audio Announcements:**
+   - Incoming calls and new SMS messages trigger spoken alerts over PC speakers.
+   - Once concluded, the call summary is logged to `memory/call_logs.json` and appended to the daily journal in the Obsidian Second Brain.
+4. **Bidirectional Hardware Control:**
+   - Issue commands from the PC via voice or Web Dashboard:
+     - *"Send SMS to John: Be there in 10 minutes."*
+     - *"Turn on / off the phone flashlight."*
+     - *"What is the phone's battery level?"*
+     - *"Show phone location."*
 
 ---
 
-## 🚀 60 Saniyede Hızlı Kurulum
+## 🚀 Quick Setup (60 Seconds)
 
-### Adım 1: Termux ve Termux:API Kurulumu
-Telefonunuza aşağıdaki iki açık kaynaklı uygulamayı kurun:
-1. **Termux (F-Droid):** [F-Droid Termux İndir](https://f-droid.org/packages/com.termux/)
-2. **Termux:API (F-Droid):** [F-Droid Termux:API İndir](https://f-droid.org/packages/com.termux.api/)
+### Step 1: Install Termux & Termux:API
+Install the two open-source APKs from F-Droid:
+1. **Termux (F-Droid):** [Download Termux](https://f-droid.org/packages/com.termux/)
+2. **Termux:API (F-Droid):** [Download Termux:API](https://f-droid.org/packages/com.termux.api/)
 
-*(Not: Google Play Store'daki Termux sürümleri eski ve güncellenmemektedir. F-Droid sürümleri önerilir.)*
+*(Note: Play Store versions of Termux are deprecated. F-Droid builds are required.)*
 
-### Adım 2: Gerekli Android İzinleri
-Telefonunuzun **Ayarlar ➔ Uygulamalar ➔ Termux** ve **Termux:API** bölümlerine giderek:
-- **Telefon:** İzin ver (Arama yapma ve durumu okuma)
-- **SMS:** İzin ver (SMS alma ve gönderme)
-- **Kişiler & Konum:** İzin ver
-- **Pil Optimizasyonu:** *Kısıtlamasız* (Ekran kapandığında arka planda kapanmaması için)
+### Step 2: Grant Android Permissions
+Navigate to **Settings ➔ Apps ➔ Termux** and **Termux:API**:
+- **Phone:** Allowed (Make and manage phone calls)
+- **SMS:** Allowed (Send and view SMS messages)
+- **Contacts & Location:** Allowed
+- **Battery Optimization:** *Unrestricted* (Prevents background sleep when screen turns off)
 
-### Adım 3: Kurulum ve Çalıştırma
-Termux uygulamasını açın ve aşağıdaki komutları yazın:
+### Step 3: Setup & Launch
+Open Termux and run:
 
 ```bash
-# Depoyu klonlayın veya termux_companion dizinini telefonunuza aktarın:
+# Clone the repository or copy the termux_companion directory:
 cd termux_companion
 
-# Kurulum betiğini çalıştırın (Paketleri ve kütüphaneleri otomatik kurar):
+# Run installation script (installs packages and dependencies):
 bash install.sh
 
-# Başlatın:
+# Start the companion daemon:
 ./start_edith.sh
 ```
 
 ---
 
-## 🛠️ Manuel Parametreler
+## 🛠️ Manual Parameters
 
-Eğer farklı bir alt ağdaysanız veya elle IP girmek isterseniz:
+If operating across different subnets or setting a static IP:
 
 ```bash
 python edith_phone_node.py --pc-ip 192.168.1.50 --port 8765
 ```
 
-Arka planda ekran kapalıyken kesintisiz çalışması için `termux-wake-lock` otomatik olarak devreye girer.
+`termux-wake-lock` is automatically acquired to ensure uninterrupted background execution while the screen is locked.

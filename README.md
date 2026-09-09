@@ -26,8 +26,8 @@
 - 🧩 **Drop-In Plugin Architecture:** Add new tools simply by placing `.py` files inside the `plugins/` directory. Zero code modifications required.
 - 🌐 **Web Control Dashboard (PWA):** Live hardware telemetry, remote chat, operating mode selector, and device control from PC or mobile at `http://localhost:8080`.
 - 🤖 **Stark Industries Human-Like Discord Bot:** Chat naturally without robotic AI clichés, send attachments/images for vision inspection, join voice channels, and receive instant rich embeds when phone calls end.
-- 🧠 **Obsidian İkinci Beyin (Second Brain / Zettelkasten):** Tamamen yerel, açık ve taşınabilir Markdown formatında atomik konsept notları (`Concepts/`), günlük asistan günlüğü (`Daily/YYYY-MM-DD.md`), proje ve kaynak arşivi (`Projects/`, `Resources/`). Otomatik Wikilink bağlantıları, YAML frontmatter, bilgi grafiği (knowledge graph) ve web dashboard üzerinden tam kontrol.
-- 🎙️ **Zarif Kadın Sesi & Voice Studio:** Hybrid speech engine utilizing Edge-TTS (`tr-TR-EmelNeural`) with warm holographic filtering and Piper Neural (`tr_TR-dfki-medium`) for offline synthesis. Dedicated Voice Studio GUI for acoustic fine-tuning.
+- 🧠 **Obsidian Second Brain (Zettelkasten Knowledge Graph):** 100% local, open, and portable Markdown architecture organizing atomic concept notes (`Concepts/`), daily executive logs (`Daily/YYYY-MM-DD.md`), projects, and resources (`Projects/`, `Resources/`). Features automated bidirectional Wikilinks, YAML frontmatter, interactive knowledge graph, and full control via the Web Dashboard.
+- 🎙️ **Warm Female Voice & Acoustic Voice Studio:** Hybrid speech engine utilizing Edge-TTS (`tr-TR-EmelNeural` / `en-US-JennyNeural`) with warm holographic filtering and Piper Neural (`tr_TR-dfki-medium` / `en_US-amy-medium`) for offline synthesis. Dedicated Voice Studio GUI for acoustic fine-tuning.
 
 ---
 
@@ -75,7 +75,7 @@
 | **SIP PBX Secretary** | pyVoIP (RFC 3261 / 3550 RTP) | Live call answering on PC/VPS when phone is off via carrier call forwarding (`*62*`). |
 | **Termux Phone Companion** | Termux & Termux:API / Fast-polling | Zero-cost call notification, 14s auto-answer, battery telemetry, and Termux:Boot startup. |
 | **Voice Engine & Studio** | Edge-TTS / Piper Neural / AudioProcessor | Warm holographic female voice, offline fallback, and Voice Studio fine-tuning GUI. |
-| **Vision & Camera Suite** | MSS / PIL / OpenCV / PyAutoGUI | Screen understanding, webcam vision ("Bana bak"), and autonomous GUI vision clicking. |
+| **Vision & Camera Suite** | MSS / PIL / OpenCV / PyAutoGUI | Screen understanding, webcam vision ("Look at me"), and autonomous GUI vision clicking. |
 | **Plugin Registry** | Python `importlib` / Dynamic Dispatch | Automatic discovery and validation of drop-in tools in `plugins/`. |
 | **Web Dashboard** | FastAPI / HTML5 / Uvicorn | Real-time browser control, operating mode selection, and hardware telemetry on port 8080. |
 | **Discord Engine** | `discord.py` / FFmpeg | Human-like text conversation, image understanding, phone call rich embeds, and `!mode`. |
@@ -85,19 +85,19 @@
 
 ---
 
-## 🧠 Obsidian Second Brain & Zettelkasten Mimarisi
+## 🧠 Obsidian Second Brain & Zettelkasten Architecture
 
-EDITH, kullanıcının gün boyunca yaptığı araştırmaları, sabah brifinglerini, gelen çağrı özetlerini ve atomik fikirleri **Obsidian uyumlu, açık ve yerel Markdown** formatında organize eder.
+EDITH organizes research, daily morning briefings, incoming call transcripts, and atomic ideas into an **Obsidian-compatible, open, and local Markdown** second brain.
 
-- 🗂️ **Zettelkasten Dizin Hiyerarşisi:**
-  - `Daily/` — Günlük asistan günlüğü (`YYYY-MM-DD.md`), sabah durum raporları ve telefon görüşme özetleri.
-  - `Concepts/` — Atomik fikirler, teoriler ve tanımlar.
-  - `Projects/` — Proje kilometre taşları, mimari planlar ve yapılacaklar.
-  - `Resources/` — Web araştırma özetleri, makaleler ve referanslar.
-- 🔗 **Otomatik Wikilink & YAML Frontmatter:** Notlar arasında `[[Konsept Adı]]` bağlantıları ve standart YAML metaverileri.
-- 🌐 **Web Dashboard Entegrasyonu:** `http://localhost:8080` üzerinden canlı Vault istatistikleri, hızlı not kaydedici ve anlık arama.
-- 📊 **Bilgi Grafiği (Knowledge Graph):** Tüm notlar arasındaki bağlantıları düğüm/kenar yapısıyla Obsidian Grafik Görünümünde görselleştirme.
-- 📖 Detaylı mimari ve REST API dokümantasyonu için [docs/OBSIDIAN_SECOND_BRAIN.md](docs/OBSIDIAN_SECOND_BRAIN.md) belgesini inceleyin.
+- 🗂️ **Zettelkasten Directory Structure:**
+  - `Daily/` — Executive daily journal (`YYYY-MM-DD.md`), morning health reports, and call summaries.
+  - `Concepts/` — Atomic ideas, definitions, mental models, and flashcards.
+  - `Projects/` — Project roadmaps, architectural milestones, and actionable tasks.
+  - `Resources/` — Web research digests, articles, bookmarks, and references.
+- 🔗 **Automated Wikilinks & YAML Frontmatter:** Contextual cross-links between notes using `[[Concept Name]]` and standard YAML frontmatter metadata.
+- 🌐 **Web Dashboard Integration:** Real-time Vault telemetry, rapid note capture, and instant weighted search at `http://localhost:8080`.
+- 📊 **Interactive Knowledge Graph:** Visualizes all note relations with node/edge topology compatible with Obsidian's Graph View.
+- 📖 For complete architectural details and REST API specs, refer to [docs/OBSIDIAN_SECOND_BRAIN.md](docs/OBSIDIAN_SECOND_BRAIN.md).
 
 ---
 
@@ -164,7 +164,7 @@ See [PLUGINS.md](PLUGINS.md) for advanced usage and parameter signatures.
 ## 🤖 Discord Bot & Web Dashboard
 
 - **Web Dashboard:** Access `http://localhost:8080` to view real-time system stats and send commands.
-- **Discord Bot:** Enter your bot token in **Settings** (`Ayarlar`) ➔ **Telefon & Discord** to chat naturally, join voice channels (`/join`, `/speak`), or control your PC remotely (`/status`, `/screen`, `/search`, `/volume`).
+- **Discord Bot:** Enter your bot token in **Settings** ➔ **Phone & Discord** to chat naturally, join voice channels (`/join`, `/speak`), or control your PC remotely (`/status`, `/screen`, `/search`, `/volume`).
 
 ---
 
