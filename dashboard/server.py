@@ -563,6 +563,60 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 Çevrimdışı Kuyruk: Kontrol ediliyor...
             </div>
         </div>
+
+        <!-- 🧠 İkinci Beyin (Obsidian Vault & Bilgi Grafiği) Kartı (Phase 14) -->
+        <div class="card" style="border: 1px solid rgba(168, 85, 247, 0.45); background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(0, 0, 0, 0.5));">
+            <div class="card-title">
+                <span>🧠 İkinci Beyin (Obsidian Vault)</span>
+                <span id="obsidian-stats-badge" style="font-size:10px; color:#c084fc; cursor:pointer;" onclick="loadObsidianStats()">Yenile ↻</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                Obsidian Markdown tabanlı atomik notlar, günlük düşünce akışı ve bağlantılı bilgi grafiği.
+            </div>
+
+            <!-- Hızlı Fikir / Not Ekleme (Quick Capture) -->
+            <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(168,85,247,0.25); border-radius:8px; padding:8px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:bold; color:#c084fc; margin-bottom:6px;">⚡ Hızlı Not / Konsept Kaydet</div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="obsidian-note-title" placeholder="Not Başlığı (örn: Yapay Zeka Ajanları)" style="flex:2; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px;">
+                    <select id="obsidian-note-folder" style="flex:1; background:#0b0816; border:1px solid rgba(168,85,247,0.4); border-radius:6px; color:#c084fc; font-size:10px; padding:4px;">
+                        <option value="Concepts">Concepts</option>
+                        <option value="Projects">Projects</option>
+                        <option value="Resources">Resources</option>
+                    </select>
+                </div>
+                <textarea id="obsidian-note-content" placeholder="Not içeriği, düşünceler, [[Wikilink]] veya #etiket..." rows="2" style="width:100%; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px; margin-bottom:6px; resize:vertical;"></textarea>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" id="obsidian-note-tags" placeholder="Etiketler (örn: ai, mimari, zettel)" style="flex:1; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px;">
+                    <button class="ctrl-btn" style="border-color:#c084fc; padding:6px 10px; font-size:11px;" onclick="saveObsidianNote()">💾 Vault'a Kaydet</button>
+                </div>
+            </div>
+
+            <!-- Günlük Nota Hızlı Düşünce Ekleme (Daily Journaling) -->
+            <div style="background:rgba(0,0,0,0.3); border:1px solid rgba(0,212,192,0.25); border-radius:8px; padding:8px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:bold; color:var(--primary); margin-bottom:6px;">📅 Günlük Nota Ekle (Daily Note)</div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="obsidian-daily-entry" placeholder="Günün notuna zaman damgalı düşünce ekle..." style="flex:2; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:6px 8px; color:#fff; font-size:11px;">
+                    <select id="obsidian-daily-section" style="flex:1; background:#041414; border:1px solid rgba(0,212,192,0.4); border-radius:6px; color:var(--primary); font-size:10px; padding:4px;">
+                        <option value="Düşünceler & Hızlı Notlar">💡 Hızlı Notlar</option>
+                        <option value="Günün Öncelikli Görevleri">🎯 Görevler</option>
+                        <option value="Sabah Brifingi & Durum">☕ Sabah Brifingi</option>
+                        <option value="İletişim & Çağrı Kayıtları">📞 İletişim</option>
+                        <option value="Akşam Özeti">🌙 Akşam Özeti</option>
+                    </select>
+                </div>
+                <button class="ctrl-btn" style="width:100%; border-color:var(--primary); padding:6px 10px; font-size:11px;" onclick="appendObsidianDaily()">📌 Günlüğe Ekle</button>
+            </div>
+
+            <!-- Arama & Son Notlar -->
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="obsidian-search-query" placeholder="Vault'ta ara (örn: python, toplantı)..." style="flex:1; background:rgba(0,0,0,0.4); border:1px solid rgba(168,85,247,0.3); border-radius:6px; padding:8px 10px; color:#fff; font-size:12px;">
+                <button class="ctrl-btn" style="border-color:#c084fc; font-weight:bold;" onclick="searchObsidian()">🔍 Ara</button>
+            </div>
+            <div id="obsidian-notes-list" style="max-height:160px; overflow-y:auto; font-size:11px; background:rgba(0,0,0,0.5); border-radius:6px; padding:6px;">
+                <div style="color:var(--text-dim); text-align:center; padding:8px;">Notlar yükleniyor...</div>
+            </div>
+        </div>
     </div>
 
     <!-- TAB 5: ÇAĞRILAR & SEKRETER -->
@@ -1342,6 +1396,141 @@ _MOBILE_DASHBOARD_HTML = """<!DOCTYPE html>
                 loadNetworkDevices();
             } catch(e) {
                 alert('Senkronizasyon hatası: ' + e);
+            }
+        }
+
+        // ── 6. OBSIDIAN İKİNCİ BEYİN & BİLGİ GRAFİĞİ ─────────────────────────
+        async function loadObsidianStats() {
+            const badge = document.getElementById('obsidian-stats-badge');
+            const list = document.getElementById('obsidian-notes-list');
+            if (!list) return;
+            try {
+                const res = await fetch('/api/obsidian/stats');
+                const data = await res.json();
+                if (badge && data.total_notes !== undefined) {
+                    badge.innerText = `${data.total_notes} Not ↻`;
+                }
+                const recent = data.recent_notes || [];
+                if (recent.length === 0) {
+                    list.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Vault içinde henüz not bulunmuyor.</div>';
+                    return;
+                }
+                let html = '<div style="font-size:10px; color:var(--text-dim); margin-bottom:4px;">Son Güncellenen Notlar:</div>';
+                for (const n of recent) {
+                    html += `<div style="padding:6px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <span style="color:#c084fc; font-weight:bold;">[[${n.title}]]</span>
+                            <span style="font-size:10px; color:var(--text-dim); margin-left:6px;">(${n.folder})</span>
+                        </div>
+                        <span style="font-size:9px; color:var(--text-dim);">${new Date(n.mtime * 1000).toLocaleDateString()}</span>
+                    </div>`;
+                }
+                list.innerHTML = html;
+            } catch (e) {
+                list.innerHTML = '<div style="color:var(--danger); text-align:center;">Hata: ' + e + '</div>';
+            }
+        }
+        setTimeout(loadObsidianStats, 2000);
+
+        async function saveObsidianNote() {
+            const titleInp = document.getElementById('obsidian-note-title');
+            const folderSel = document.getElementById('obsidian-note-folder');
+            const contentInp = document.getElementById('obsidian-note-content');
+            const tagsInp = document.getElementById('obsidian-note-tags');
+
+            const title = titleInp.value.trim();
+            const content = contentInp.value.trim();
+            if (!title) {
+                alert("Lütfen bir not başlığı girin efendim.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/obsidian/note', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title: title,
+                        folder: folderSel.value,
+                        content: content,
+                        tags: tagsInp.value,
+                    })
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', `📝 Obsidian Vault: '${title}' ${folderSel.value} klasörüne kaydedildi.`);
+                    titleInp.value = '';
+                    contentInp.value = '';
+                    tagsInp.value = '';
+                    loadObsidianStats();
+                } else {
+                    alert(d.message || "Not kaydedilemedi.");
+                }
+            } catch (e) {
+                alert("Kayıt hatası: " + e);
+            }
+        }
+
+        async function appendObsidianDaily() {
+            const entryInp = document.getElementById('obsidian-daily-entry');
+            const secSel = document.getElementById('obsidian-daily-section');
+            const entry = entryInp.value.trim();
+            if (!entry) {
+                alert("Lütfen günlüğe eklenecek bir düşünce girin.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/obsidian/daily', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        entry: entry,
+                        section: secSel.value,
+                    })
+                });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    appendMsg('sys', `📅 Günlük Not: Düşünceniz [${secSel.value}] altına işlendi.`);
+                    entryInp.value = '';
+                    loadObsidianStats();
+                } else {
+                    alert(d.message || "Günlük nota eklenemedi.");
+                }
+            } catch (e) {
+                alert("Günlük kayıt hatası: " + e);
+            }
+        }
+
+        async function searchObsidian() {
+            const qInp = document.getElementById('obsidian-search-query');
+            const list = document.getElementById('obsidian-notes-list');
+            const q = qInp.value.trim();
+            if (!q) {
+                loadObsidianStats();
+                return;
+            }
+
+            list.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:8px;">Aranıyor...</div>';
+            try {
+                const res = await fetch('/api/obsidian/search?q=' + encodeURIComponent(q));
+                const data = await res.json();
+                const results = data.results || [];
+                if (results.length === 0) {
+                    list.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:8px;">'${q}' ile ilgili not bulunamadı.</div>`;
+                    return;
+                }
+                let html = `<div style="font-size:10px; color:#c084fc; margin-bottom:4px;">'${q}' için ${results.length} Eşleşme:</div>`;
+                for (const r of results) {
+                    const snip = (r.snippets && r.snippets.length > 0) ? r.snippets.join(' ... ') : '';
+                    html += `<div style="padding:6px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <div style="font-weight:bold; color:var(--text); font-size:12px;">[[${r.title}]] <span style="font-size:10px; color:var(--text-dim);">(${r.folder})</span></div>
+                        ${snip ? `<div style="font-size:10px; color:var(--text-dim); margin-top:2px;">${snip}</div>` : ''}
+                    </div>`;
+                }
+                list.innerHTML = html;
+            } catch (e) {
+                list.innerHTML = '<div style="color:var(--danger); text-align:center;">Arama hatası: ' + e + '</div>';
             }
         }
 
@@ -2172,6 +2361,128 @@ async def delete_memory_item(payload: dict = None):
         if ok:
             return {"status": "ok", "message": msg}
         return JSONResponse(status_code=400, content={"status": "error", "message": msg})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+# ── OBSIDIAN İKİNCİ BEYİN & BİLGİ GRAFİĞİ (RULE 8 & PHASE 14) ───────────────
+
+@app.get("/api/obsidian/stats")
+async def get_obsidian_stats():
+    """Obsidian Vault istatistiklerini ve son notları döner."""
+    try:
+        from actions.obsidian_bridge import get_obsidian_bridge
+        stats = get_obsidian_bridge().get_vault_stats()
+        return {"status": "ok", **stats}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/obsidian/daily")
+async def get_obsidian_daily():
+    """Bugünün günlük not içeriğini döner."""
+    try:
+        from actions.obsidian_bridge import get_obsidian_bridge
+        bridge = get_obsidian_bridge()
+        content = bridge.get_today_daily_content()
+        daily_path = bridge.get_today_daily_path()
+        return {
+            "status": "ok",
+            "date": daily_path.stem,
+            "filename": daily_path.name,
+            "content": content,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/obsidian/daily")
+async def post_obsidian_daily(payload: dict = None):
+    """Bugünün günlük notuna yeni bir girdi ekler."""
+    try:
+        payload = payload or {}
+        entry = (payload.get("entry") or payload.get("content") or "").strip()
+        if not entry:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Girdi metni boş olamaz."})
+        section = (payload.get("section") or "Düşünceler & Hızlı Notlar").strip()
+        tags = payload.get("tags")
+        if isinstance(tags, str):
+            tags = [t.strip().lstrip("#") for t in tags.split(",") if t.strip()]
+
+        from actions.obsidian_bridge import get_obsidian_bridge
+        res = get_obsidian_bridge().append_daily_note(entry, section=section, tags=tags)
+        return res
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/obsidian/note")
+async def post_obsidian_note(payload: dict = None):
+    """Vault içinde yeni bir konsept, proje veya kaynak notu oluşturur."""
+    try:
+        payload = payload or {}
+        title = (payload.get("title") or "").strip()
+        content = (payload.get("content") or "").strip()
+        if not title:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Not başlığı boş olamaz."})
+        folder = (payload.get("folder") or "Concepts").strip()
+        tags = payload.get("tags")
+        if isinstance(tags, str):
+            tags = [t.strip().lstrip("#") for t in tags.split(",") if t.strip()]
+        links = payload.get("links")
+        if isinstance(links, str):
+            links = [l.strip().strip("[]") for l in links.split(",") if l.strip()]
+        note_type = (payload.get("note_type") or "concept").strip()
+
+        from actions.obsidian_bridge import get_obsidian_bridge
+        res = get_obsidian_bridge().create_note(
+            title=title,
+            content=content,
+            folder=folder,
+            tags=tags,
+            links=links,
+            note_type=note_type,
+        )
+        return res
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/obsidian/search")
+async def get_obsidian_search(q: str = "", folder: Optional[str] = None, limit: int = 6):
+    """Vault içindeki notlarda anahtar kelime ve semantik arama yapar."""
+    try:
+        if not q.strip():
+            return {"status": "ok", "query": "", "results": []}
+        from actions.obsidian_bridge import get_obsidian_bridge
+        results = get_obsidian_bridge().search_vault(q.strip(), folder=folder, limit=limit)
+        return {"status": "ok", "query": q, "count": len(results), "results": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/obsidian/read")
+async def get_obsidian_read(title: str = ""):
+    """Belirtilen başlığa sahip notun detaylarını okur."""
+    try:
+        if not title.strip():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Okunacak not başlığı belirtilmedi."})
+        from actions.obsidian_bridge import get_obsidian_bridge
+        note = get_obsidian_bridge().read_note(title.strip())
+        if not note:
+            return JSONResponse(status_code=404, content={"status": "error", "message": f"'{title}' başlıklı not bulunamadı."})
+        return {"status": "ok", "note": note}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/obsidian/graph")
+async def get_obsidian_graph():
+    """Bilgi grafiği görselleştirmesi için Düğümler (Nodes) ve Kenarlar (Edges) döner."""
+    try:
+        from actions.obsidian_bridge import get_obsidian_bridge
+        graph = get_obsidian_bridge().get_graph_data()
+        return {"status": "ok", **graph}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 

@@ -66,6 +66,7 @@ memory/chat_history.json
 memory/memory.json
 memory/phone_book.json
 memory/offline_sync_queue.json
+memory/obsidian_vault/
 *.pem
 *.key
 *.token

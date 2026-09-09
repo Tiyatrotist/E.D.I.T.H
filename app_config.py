@@ -181,6 +181,17 @@ DEFAULT_SIP = {
     "greeting": "Merhaba, ben Buğra'nın asistanı EDITH. Size nasıl yardımcı olabilirim?",
 }
 
+DEFAULT_OBSIDIAN = {
+    "enabled": True,
+    "vault_path": "",  # Boşsa varsayılan olarak ~/Documents/EDITH_Vault kullanılır
+    "daily_folder": "Daily",
+    "concepts_folder": "Concepts",
+    "projects_folder": "Projects",
+    "resources_folder": "Resources",
+    "auto_daily_briefing": True,
+    "auto_call_log": True,
+}
+
 DEFAULT_CONFIG = {
     "app_role": "client",  # "client" (Windows PC) veya "server" (Oracle Cloud VPS)
     "active_provider": "nim",
@@ -190,6 +201,7 @@ DEFAULT_CONFIG = {
     "sip": DEFAULT_SIP,
     "discord": DEFAULT_DISCORD,
     "server_sync": DEFAULT_SERVER_SYNC,
+    "obsidian": DEFAULT_OBSIDIAN,
     # Geriye dönük uyumluluk ve genel ayarlar:
     "gemini_api_key": "",
     "voice": "Charon",

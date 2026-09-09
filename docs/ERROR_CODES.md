@@ -112,6 +112,18 @@ Bu dokümantasyon, E.D.I.T.H asistanının sahada karşılaştığı durumlarda 
 
 ---
 
+## 🧠 İkinci Beyin & Obsidian (800 Serisi)
+
+### `ED-VAULT-801` — Obsidian Vault Dizini Erişilemedi / Yazılamadı
+- **Neden:** Belirtilen Vault klasör yolunda izin hatası veya disk erişim engeli.
+- **Çözüm:** `config/settings.json` içerisindeki `obsidian.vault_path` yolunu doğrulayın ve klasör yazma izinlerini kontrol edin.
+
+### `ED-VAULT-802` — Not Ayrıştırma veya YAML Biçim Hatası
+- **Neden:** Markdown dosyasındaki YAML frontmatter metaverisi geçersiz sözdizimi içeriyor.
+- **Çözüm:** İlgili notun ilk satırlarındaki `---` blokları arasındaki YAML sözdizimini (girintiler, çift tırnaklar) kontrol edin.
+
+---
+
 ## 📞 Telefon Köprüsü & Sekreter (900 Serisi)
 
 ### `ED-PHONE-901` — Telefon Köprüsü Bağlantı Hatası

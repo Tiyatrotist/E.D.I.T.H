@@ -264,6 +264,23 @@ def generate_morning_briefing(force: bool = False, user_name: str = "Buğra") ->
     ]
     markdown_report = "\n".join(md_lines)
 
+    # Obsidian İkinci Beyin Günlük Not Entegrasyonu (Kural 8 & Aşama 14)
+    try:
+        from app_config import load_app_config
+        obs_cfg = load_app_config().get("obsidian", {})
+        if obs_cfg.get("enabled", True) and obs_cfg.get("auto_daily_briefing", True):
+            from actions.obsidian_bridge import get_obsidian_bridge
+            bridge = get_obsidian_bridge()
+            weather_first = weather_report.splitlines()[0] if weather_report else "Hava bilgisi alınamadı."
+            briefing_summary = f"{greeting_title} | 🌤️ {weather_first} | ⏰ {reminders_spoken}"
+            bridge.append_daily_note(
+                entry_text=briefing_summary,
+                section="☕ Sabah Brifingi & Durum",
+                tags=["briefing", "morning"],
+            )
+    except Exception as e:
+        print(f"[MorningBriefing] ℹ️ Obsidian günlük not kaydı atlandı: {e}")
+
     print(f"[MorningBriefing] ☕ Sabah brifingi başarıyla üretildi. ({len(full_spoken_text)} karakter ses metni)")
     return markdown_report, full_spoken_text
 

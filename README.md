@@ -26,6 +26,7 @@
 - 🧩 **Drop-In Plugin Architecture:** Add new tools simply by placing `.py` files inside the `plugins/` directory. Zero code modifications required.
 - 🌐 **Web Control Dashboard (PWA):** Live hardware telemetry, remote chat, operating mode selector, and device control from PC or mobile at `http://localhost:8080`.
 - 🤖 **Stark Industries Human-Like Discord Bot:** Chat naturally without robotic AI clichés, send attachments/images for vision inspection, join voice channels, and receive instant rich embeds when phone calls end.
+- 🧠 **Obsidian İkinci Beyin (Second Brain / Zettelkasten):** Tamamen yerel, açık ve taşınabilir Markdown formatında atomik konsept notları (`Concepts/`), günlük asistan günlüğü (`Daily/YYYY-MM-DD.md`), proje ve kaynak arşivi (`Projects/`, `Resources/`). Otomatik Wikilink bağlantıları, YAML frontmatter, bilgi grafiği (knowledge graph) ve web dashboard üzerinden tam kontrol.
 - 🎙️ **Zarif Kadın Sesi & Voice Studio:** Hybrid speech engine utilizing Edge-TTS (`tr-TR-EmelNeural`) with warm holographic filtering and Piper Neural (`tr_TR-dfki-medium`) for offline synthesis. Dedicated Voice Studio GUI for acoustic fine-tuning.
 
 ---
@@ -80,6 +81,23 @@
 | **Discord Engine** | `discord.py` / FFmpeg | Human-like text conversation, image understanding, phone call rich embeds, and `!mode`. |
 | **System Telemetry** | `psutil` / NVML `ctypes` / WMI | Subprocess-free CPU, RAM, GPU, network, and temperature monitoring. |
 | **Desktop Automation** | `pygetwindow` / `pyautogui` / Shell | Zero-permission Instagram DM, WhatsApp, window focus, volume, and media keys. |
+| **Obsidian Second Brain** | Obsidian Markdown / Zettelkasten | Connected knowledge graph, daily note journaling, web archiving, and LLM tool integration. |
+
+---
+
+## 🧠 Obsidian Second Brain & Zettelkasten Mimarisi
+
+EDITH, kullanıcının gün boyunca yaptığı araştırmaları, sabah brifinglerini, gelen çağrı özetlerini ve atomik fikirleri **Obsidian uyumlu, açık ve yerel Markdown** formatında organize eder.
+
+- 🗂️ **Zettelkasten Dizin Hiyerarşisi:**
+  - `Daily/` — Günlük asistan günlüğü (`YYYY-MM-DD.md`), sabah durum raporları ve telefon görüşme özetleri.
+  - `Concepts/` — Atomik fikirler, teoriler ve tanımlar.
+  - `Projects/` — Proje kilometre taşları, mimari planlar ve yapılacaklar.
+  - `Resources/` — Web araştırma özetleri, makaleler ve referanslar.
+- 🔗 **Otomatik Wikilink & YAML Frontmatter:** Notlar arasında `[[Konsept Adı]]` bağlantıları ve standart YAML metaverileri.
+- 🌐 **Web Dashboard Entegrasyonu:** `http://localhost:8080` üzerinden canlı Vault istatistikleri, hızlı not kaydedici ve anlık arama.
+- 📊 **Bilgi Grafiği (Knowledge Graph):** Tüm notlar arasındaki bağlantıları düğüm/kenar yapısıyla Obsidian Grafik Görünümünde görselleştirme.
+- 📖 Detaylı mimari ve REST API dokümantasyonu için [docs/OBSIDIAN_SECOND_BRAIN.md](docs/OBSIDIAN_SECOND_BRAIN.md) belgesini inceleyin.
 
 ---
 

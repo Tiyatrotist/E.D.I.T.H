@@ -63,6 +63,23 @@ def _append_call_log(caller_name: str, caller_number: str, summary: str, transcr
         logs.insert(0, entry)
         CALL_LOGS_FILE.write_text(json.dumps(logs[:150], indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[PhoneBridge] 📝 Çağrı kaydı işlendi: {caller_name} -> {summary}")
+
+        # Obsidian İkinci Beyin Günlük Not Entegrasyonu (Kural 8 & Aşama 14)
+        try:
+            cfg = load_app_config()
+            obs_cfg = cfg.get("obsidian", {})
+            if obs_cfg.get("enabled", True) and obs_cfg.get("auto_call_log", True):
+                from actions.obsidian_bridge import get_obsidian_bridge
+                bridge = get_obsidian_bridge()
+                num_str = f" ({caller_number})" if caller_number else ""
+                call_entry = f"📞 **{caller_name or 'Bilinmeyen'}**{num_str}: {summary}"
+                bridge.append_daily_note(
+                    entry_text=call_entry,
+                    section="📞 İletişim & Çağrı Kayıtları",
+                    tags=["call", "phone"],
+                )
+        except Exception as e:
+            print(f"[PhoneBridge] ℹ️ Obsidian günlük not çağrı kaydı atlandı: {e}")
     except Exception as e:
         print(f"[PhoneBridge] ⚠️ Çağrı kaydı yazma hatası: {e}")
 

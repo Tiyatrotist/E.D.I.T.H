@@ -150,6 +150,7 @@ Kullanabileceğin araçlar:
 - delete_memory(category, key): Hafızadan belirtilen bilgiyi veya tercihi sil (forget_memory)
 - manage_devices(action, message): Yerel ağdaki bağlı EDITH cihazlarını listele (list), anons yayınla (broadcast) veya çevrimdışı kuyruğu senkronize et (sync)
 - phone_control(action, target, message, state): Android telefon üzerinden SMS gönder (send_sms), arama yap (call), el fenerini aç/kapat (torch), telefonun şarj ve ağ durumunu sorgula (status)
+- obsidian_note(action, title, content, folder, tags, query): Obsidian İkinci Beyin (Second Brain / Zettelkasten) yönetimi. Not oluştur (create / quick_note), günlüğe fikir/not işle (daily_log), notlarda arama yap (search), not oku (read), bilgi grafiği istatistikleri (stats). Klasörler: Concepts, Daily, Projects, Resources.
 
 Araç çağırmak için şu formatı kullan:
 TOOL_CALL: {"tool": "araç_adı", "args": {"parametre": "değer"}}
@@ -182,6 +183,7 @@ Available tools:
 - recall_memory(query): Search and recall facts from semantic memory
 - delete_memory(category, key): Delete fact from memory
 - manage_devices(action, message): Manage local network devices (list, broadcast, sync)
+- obsidian_note(action, title, content, folder, tags, query): Obsidian Second Brain management. Create atomic note (create), log to daily note (daily_log), search notes (search), read note (read), vault stats (stats).
 
 To call a tool, use:
 TOOL_CALL: {"tool": "tool_name", "args": {"parameter": "value"}}
@@ -768,6 +770,68 @@ class EdithLive:
                     result = await loop.run_in_executor(None, lambda: ctrl.vibrate())
                 else:
                     result = await loop.run_in_executor(None, lambda: ctrl.get_status_summary())
+
+            # ── OBSIDIAN İKİNCİ BEYİN & BİLGİ GRAFİĞİ (ITEM 14) ─────────────
+            elif name in ("obsidian_note", "obsidian_quick_note", "obsidian_daily_log", "obsidian_search", "obsidian_read", "obsidian_stats"):
+                from actions.obsidian_bridge import get_obsidian_bridge
+                bridge = get_obsidian_bridge()
+                act = str(args.get("action") or name).strip().lower()
+                title = str(args.get("title") or args.get("name") or "Yeni Not").strip()
+                content = str(args.get("content") or args.get("text") or args.get("body") or "").strip()
+                folder = str(args.get("folder") or "Concepts").strip()
+                tags = args.get("tags")
+                if isinstance(tags, str):
+                    tags = [t.strip().lstrip("#") for t in tags.split(",") if t.strip()]
+                query = str(args.get("query") or args.get("q") or "").strip()
+
+                if "daily" in act or act == "daily_log" or name == "obsidian_daily_log":
+                    entry = content or title
+                    sec = str(args.get("section") or "Düşünceler & Hızlı Notlar").strip()
+                    res = await loop.run_in_executor(
+                        None, lambda: bridge.append_daily_note(entry, section=sec, tags=tags)
+                    )
+                    result = res.get("message", "Günlük nota kaydedildi.")
+                elif "search" in act or name == "obsidian_search":
+                    search_q = query or title or content
+                    res = await loop.run_in_executor(
+                        None, lambda: bridge.search_vault(search_q, folder=args.get("folder"), limit=int(args.get("limit", 5) or 5))
+                    )
+                    if res:
+                        lines = [f"Vault içinde '{search_q}' için {len(res)} eşleşme bulundu:"]
+                        for r in res:
+                            snips = " | ".join(r.get("snippets", []))
+                            lines.append(f"- [[{r['title']}]] ({r['folder']}): {snips if snips else '...'}")
+                        result = "\n".join(lines)
+                    else:
+                        result = f"'{search_q}' ile ilgili ikinci beyinde bir not bulunamadı efendim."
+                elif "read" in act or name == "obsidian_read":
+                    note_key = title or query
+                    note = await loop.run_in_executor(None, lambda: bridge.read_note(note_key))
+                    if note:
+                        links_str = f" [Bağlantılar: {', '.join(note['wikilinks'])}]" if note.get('wikilinks') else ""
+                        result = f"📄 **{note['title']}** ({note['folder']}){links_str}\n\n{note['content']}"
+                    else:
+                        result = f"'{note_key}' isimli not bulunamadı efendim."
+                elif "stat" in act or name == "obsidian_stats":
+                    st = await loop.run_in_executor(None, lambda: bridge.get_vault_stats())
+                    folder_str = ", ".join(f"{k}: {v}" for k, v in st.get("folders", {}).items())
+                    result = f"🧠 **Obsidian İkinci Beyin İstatistikleri:**\n- Toplam Not: {st.get('total_notes', 0)}\n- Klasörler: {folder_str}\n- Konum: {st.get('vault_path')}"
+                else:
+                    # create / quick_note
+                    links = args.get("links")
+                    if isinstance(links, str):
+                        links = [l.strip().strip("[]") for l in links.split(",") if l.strip()]
+                    res = await loop.run_in_executor(
+                        None, lambda: bridge.create_note(
+                            title=title,
+                            content=content,
+                            folder=folder,
+                            tags=tags,
+                            links=links,
+                            note_type=args.get("note_type", "concept")
+                        )
+                    )
+                    result = res.get("message", f"'{title}' notu kaydedildi.")
 
             # ── DİĞER KOMUTLAR ───────────────────────────────────────────────
             elif name == "shell_run":
