@@ -41,7 +41,8 @@ class SyncClient:
         self.server_url = (server_url or sync_cfg.get("server_url", "http://152.70.13.195:8080")).rstrip("/")
         self.sync_interval = sync_interval or int(sync_cfg.get("sync_interval_seconds", 30))
         self.notify_voice = bool(sync_cfg.get("notify_new_calls_voice", True))
-        self.enabled = bool(sync_cfg.get("enabled", True))
+        # Missing configuration must fail closed: remote sync is opt-in.
+        self.enabled = bool(sync_cfg.get("enabled", False))
 
         self.on_new_call_callback = on_new_call_callback
         self.on_log_callback = on_log_callback
