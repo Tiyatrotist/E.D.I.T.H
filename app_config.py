@@ -451,7 +451,7 @@ def validate_app_config(config=None) -> list[str]:
         value = config.get(key)
         if value is not None and (isinstance(value, bool) or not isinstance(value, int | float)):
             errors.append(
-                f"{key} must be a number, got {type(value).__name__} (value: {str(value)[:20]})"
+                f"{key} must be a number, got {type(value).__name__}."
             )
 
     # Boolean fields validation
@@ -459,14 +459,14 @@ def validate_app_config(config=None) -> list[str]:
         value = config.get(key)
         if value is not None and not isinstance(value, bool):
             errors.append(
-                f"{key} must be true or false, got {type(value).__name__} (value: {str(value)[:20]})"
+                f"{key} must be true or false, got {type(value).__name__}."
             )
 
     # Ollama URL validation
     ollama_url = str(providers.get("ollama", {}).get("api_url", "") or config.get("ollama_api_url", "")).strip()
     if ollama_url and not ollama_url.startswith(("http://", "https://")):
         errors.append(
-            f"ollama_api_url must start with http:// or https://, got {ollama_url[:40]!r}"
+            "ollama_api_url must start with http:// or https://."
         )
 
     return errors
