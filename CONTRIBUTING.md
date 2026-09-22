@@ -48,3 +48,22 @@ from actions.web_search import web_search
 print('Verification passed!')
 "
 ```
+
+
+---
+
+## ✅ Pull Request Checks
+
+GitHub Actions runs a small dependency-free CI suite on pull requests targeting `main`.
+It currently checks the security-critical configuration and remote-sync paths on Python
+3.10, 3.11, and 3.12.
+
+Before opening a PR that touches those areas, run:
+
+```bash
+python -B -m unittest discover -s tests -p "test_sync_security_defaults.py" -v
+python -B -m unittest discover -s tests -p "test_config_validation.py" -v
+```
+
+Keep focused tests offline and deterministic: do not require API keys, audio hardware,
+a running model, or live network services.
