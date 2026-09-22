@@ -193,6 +193,5 @@ New contributors are welcome. A few focused starting points are currently availa
 - **#13** — add reminder scheduling tests without using a real user store
 - **#15** — add deterministic system-information formatting tests
 - **#16** — document the action module interface
-- **#19** — add a concise privacy/security contribution checklist
 
 Look for issues labeled `good first issue` or `help wanted`. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
