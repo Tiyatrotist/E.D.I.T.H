@@ -25,6 +25,18 @@ We welcome contributions across various areas:
 - **Safe Execution:** Keep shell commands, file modifications, and automation boundaries safe and predictable.
 - **Cross-Provider Compatibility:** Features should work with both local models (Ollama) and cloud APIs (Gemini, OpenAI, Claude).
 
+### Privacy & security checklist
+
+Before submitting a change that touches memory, configuration, network access, shell/browser automation, messaging, files, or remote sync:
+
+- use synthetic data in tests and examples;
+- never commit credentials, tokens, phone numbers, personal memory, or machine-specific private files;
+- keep data transmission opt-in where practical and prefer fail-closed defaults;
+- do not echo raw configuration values or secrets in logs/errors;
+- preserve existing execution and automation safety checks.
+
+See [SECURITY.md](SECURITY.md) for reporting guidance and the full security scope.
+
 ---
 
 ## 🚀 Pull Request Workflow
