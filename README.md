@@ -178,3 +178,21 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deve
 
 This project is licensed under the **MIT License**.
 Developer: **Tiyatrotist** — 2026
+
+
+---
+
+## 🌱 Good First Contributions
+
+New contributors are welcome. A few focused starting points are currently available:
+
+- **#4** — finish the remaining type-annotation cleanup in `actions/calendar.py`
+- **#6** — document the configuration system, precedence, and local-only files
+- **#9** — add deterministic calendar parsing tests
+- **#10** — add mocked weather-response tests
+- **#13** — add reminder scheduling tests without using a real user store
+- **#15** — add deterministic system-information formatting tests
+- **#16** — document the action module interface
+- **#19** — add a concise privacy/security contribution checklist
+
+Look for issues labeled `good first issue` or `help wanted`. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
