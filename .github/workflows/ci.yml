@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile security-critical modules
+        run: python -B -m compileall -q app_config.py core/sync_client.py
+
+      - name: Run sync security tests
+        run: python -B -m unittest discover -s tests -p "test_sync_security_defaults.py" -v
+
+      - name: Run configuration privacy tests when present
+        shell: bash
+        run: |
+          if [ -f tests/test_config_validation.py ]; then
+            python -B -m unittest discover -s tests -p "test_config_validation.py" -v
+          else
+            echo "Configuration privacy tests are not present on this branch yet."
+          fi
