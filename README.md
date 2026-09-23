@@ -1,5 +1,9 @@
 # EDITH — Multi-Provider, Voice & Vision Powered AI Assistant & System Agent
 
+[![CI](https://github.com/Tiyatrotist/E.D.I.T.H/actions/workflows/ci.yml/badge.svg)](https://github.com/Tiyatrotist/E.D.I.T.H/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/Tiyatrotist/E.D.I.T.H?include_prereleases)](https://github.com/Tiyatrotist/E.D.I.T.H/releases)
+
 ```text
     :::::::::: :::::::::  ::::::::::: ::::::::::: :::    ::: 
     :+:        :+:    :+:     :+:         :+:     :+:    :+: 
@@ -13,6 +17,18 @@
 ```
 
 **EDITH (Even Dead I'm The Hero)** is an advanced, privacy-first, multimodal personal AI assistant and desktop agent engineered for Windows. Featuring a **Multi-Provider LLM Pool** (Ollama, Gemini, OpenAI, Claude, Groq, DeepSeek, NVIDIA NIM), **Faster-Whisper Speech Recognition**, **Piper Neural TTS (Offline Female Voice)**, a **Drop-In Plugin Architecture**, a **FastAPI Web Dashboard**, an **Android Companion Phone Bridge**, and a **Human-like Discord Bot**.
+
+## Project Status
+
+E.D.I.T.H is an **actively maintained public beta**. The repository uses an MIT license, a public issue tracker, contributor-facing guidance, and offline CI across Python 3.10–3.12. Privacy-sensitive defaults and configuration handling have dedicated regression tests, and external contributions are reviewed through the normal pull-request workflow.
+
+- **Current channel:** beta
+- **Primary platform:** Windows
+- **Core principle:** local-first and privacy-first, with cloud providers optional
+- **Maintenance:** active issue triage, pull-request review, security hardening, CI, and release management
+- **Community:** good-first issues and external contributions are welcome
+
+See [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md) for release history, contribution workflow, and security reporting.
 
 ---
 
