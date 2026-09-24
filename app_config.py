@@ -264,12 +264,24 @@ def _deep_merge_dict(base: dict, update: dict) -> dict:
     return result
 
 
-def load_app_config() -> dict:
-    """Config dosyasını DEFAULT_CONFIG ile harmanlayarak yükler."""
+def load_app_config(*, strict: bool = False) -> dict:
+    """Config dosyasını DEFAULT_CONFIG ile harmanlayarak yükler.
+
+    strict=True rejects unreadable, malformed, or incorrectly shaped local files
+    with a value-free error instead of falling back to defaults.
+    """
     config = copy.deepcopy(DEFAULT_CONFIG)
     try:
         if CONFIG_PATH.exists():
             raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            if strict:
+                if not isinstance(raw, dict):
+                    raise ValueError("Configuration must be a JSON object")
+                providers = raw.get("providers", {})
+                if not isinstance(providers, dict) or any(
+                    not isinstance(value, dict) for value in providers.values()
+                ):
+                    raise ValueError("Provider settings must be JSON objects")
             if isinstance(raw, dict):
                 config = _deep_merge_dict(config, raw)
                 
@@ -289,6 +301,11 @@ def load_app_config() -> dict:
                         gemini_cfg["api_key"] = raw["gemini_api_key"]
                         config["providers"]["gemini"] = gemini_cfg
     except Exception as e:
+        if strict:
+            raise ValueError(
+                "Cannot load configuration; check config/api_keys.json permissions, "
+                "JSON syntax, and provider object structure."
+            ) from None
         print(f"[AppConfig] ⚠️ Config yükleme hatası: {e}")
 
     # ── .env ve İşletim Sistemi Ortam Değişkenleri ile Güvenli Enjeksiyon ──
@@ -470,3 +487,32 @@ def validate_app_config(config=None) -> list[str]:
         )
 
     return errors
+
+
+def main(argv=None) -> int:
+    """Validate local settings without starting the assistant or contacting services."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=["validate"], help="check local configuration")
+    parser.parse_args(argv)
+    try:
+        errors = validate_app_config(load_app_config(strict=True))
+    except Exception:
+        # Never expose exceptions containing raw values, paths, or credentials.
+        print(
+            "Configuration validation failed: check config/api_keys.json permissions, "
+            "JSON syntax, and settings structure.", file=sys.stderr
+        )
+        return 1
+    if errors:
+        print("Configuration validation failed:", file=sys.stderr)
+        for error in errors:
+            print(f"- {error}", file=sys.stderr)
+        return 1
+    print("Configuration is valid (local checks only; service access was not tested).")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

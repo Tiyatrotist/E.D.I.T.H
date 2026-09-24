@@ -124,6 +124,17 @@ ollama pull llama3.2-vision  # Optional for offline vision
 ```
 
 ### 3. Launch EDITH
+Check local settings before starting the assistant:
+```bash
+python app_config.py validate
+```
+This read-only command uses the normal defaults, local `config/api_keys.json`, and
+environment overrides (including `.env` when `python-dotenv` is installed). A missing
+settings file uses defaults; malformed JSON or invalid settings fail with exit code
+1 and messages that omit raw values. Success exits 0. It runs the existing local
+validation rules without loading models, audio, or the UI; it does not test credentials
+or service availability.
+
 ```bash
 python main.py
 ```
