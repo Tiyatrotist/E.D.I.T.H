@@ -12,11 +12,21 @@ tetiklemeleri zaman damgalı loglanır.
 from __future__ import annotations
 
 import ctypes
+import sys
 import threading
 import time
 import urllib.parse
 import webbrowser
 from typing import Optional
+
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 from actions.mouse import press_enter, press_key, write_text
 from memory.memory_manager import load_memory

@@ -2704,7 +2704,7 @@ async def phone_incoming_call(payload: dict):
     }
 
     cfg = load_app_config().get("phone_companion", {})
-    auto_answer = cfg.get("auto_answer", True)
+    auto_answer = payload.get("auto_answer", cfg.get("auto_answer", False))
     delay = int(cfg.get("auto_answer_delay_seconds", 14))
     greeting = cfg.get("greeting", f"Merhaba, ben Buğra'nın asistanı EDITH. {caller_name}, nasıl yardımcı olabilirim?")
 

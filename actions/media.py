@@ -130,5 +130,5 @@ def play_media(query: str, provider: str = "auto", autoplay: bool = True) -> str
             return f"Dosya açılırken hata oluştu: {e}"
 
     # Yerel müzik klasöründe hiçbir şey bulunamazsa alternatif olarak hata dönüyoruz
-    return f"'{query}' yerel Müzik klasörünüzde bulunamadı. Lütfen dosya adını kontrol edin veya şarkıyı 'C:\\Users\\Bugra\\Music' klasörüne ekleyin."
+    return f"'{query}' yerel Müzik klasörünüzde bulunamadı. Lütfen dosya adını kontrol edin veya şarkıyı '{music_dir}' klasörüne ekleyin."
 

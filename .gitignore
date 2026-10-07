@@ -61,6 +61,8 @@ venv.bak/
 # User configurations and credentials (CRITICAL)
 config/api_keys.json
 api_keys.json
+config.json
+config.local.json
 memory/call_logs.json
 memory/chat_history.json
 memory/memory.json

@@ -32,6 +32,8 @@ class TestSemanticVectorEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = SemanticMemoryEngine.get_instance()
+        self.engine.store_fact("identity", "cat_name", "Pamuk")
+        self.engine.store_fact("preferences", "favorite_music", "Baby Doll")
         self.engine.rebuild_index()
 
     def test_normalize_text_semantic(self):
@@ -66,6 +68,9 @@ class TestMemoryPersistenceAndFormatting(unittest.TestCase):
 
     def setUp(self):
         self.engine = SemanticMemoryEngine.get_instance()
+        self.engine.store_fact("identity", "cat_name", "Pamuk")
+        self.engine.store_fact("preferences", "favorite_music", "Baby Doll")
+        self.engine.rebuild_index()
 
     def test_format_context_for_prompt_with_match(self):
         """Eşleşen bilgi olduğunda doğru prompt bağlam bloğunun üretildiğini test eder."""

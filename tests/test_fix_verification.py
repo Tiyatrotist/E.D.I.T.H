@@ -112,7 +112,8 @@ def test_termux_phone_integration():
     # Gelen arama bildirimi
     resp = client.post("/api/phone/incoming_call", json={
         "caller_name": "Mehmet Test",
-        "caller_number": "05321112233"
+        "caller_number": "05321112233",
+        "auto_answer": True,
     })
     assert resp.status_code == 200
     data = resp.json()

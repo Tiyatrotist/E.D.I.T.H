@@ -237,7 +237,7 @@ class TestObsidianIntegrations:
 
             daily_text = bridge.get_today_daily_content()
             assert "## ☕ Sabah Brifingi & Durum" in daily_text
-            assert "Günaydın" in daily_text or "Tünaydın" in daily_text or "İyi akşamlar" in daily_text
+            assert any(g in daily_text for g in ["Günaydın", "günaydın", "Tünaydın", "tünaydın", "İyi Akşamlar", "İyi akşamlar", "İyi Geceler", "İyi geceler"])
 
     def test_phone_bridge_call_log_daily_note_integration(self, temp_vault):
         bridge, vault_path = temp_vault

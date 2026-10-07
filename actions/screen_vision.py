@@ -104,7 +104,8 @@ def capture_screen_image(target: str = "full_screen") -> tuple[bool, str, str]:
     # 1. Yöntem: MSS (Donanım hızlandırmalı)
     if HAS_MSS:
         try:
-            with mss.mss() as sct:
+            mss_cls = getattr(mss, "MSS", mss.mss)
+            with mss_cls() as sct:
                 monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
                 raw = sct.grab(monitor)
                 img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
