@@ -10,7 +10,7 @@ from __future__ import annotations
 import webbrowser
 
 
-def _open_google_calendar():
+def _open_google_calendar() -> None:
     webbrowser.open("https://calendar.google.com")
 
 
@@ -34,10 +34,13 @@ def add_calendar_event(
 ) -> str:
     # Google Calendar quick add URL
     import urllib.parse
-    params = {"text": title}
+
+    params: dict[str, str] = {"text": title}
     if start_iso:
-        date_part = start_iso.replace(":", "").replace("-", "").split("T")[0]
-        time_part = start_iso.split("T")[1].replace(":", "")[:4] if "T" in start_iso else ""
+        date_part: str = start_iso.replace(":", "").replace("-", "").split("T")[0]
+        time_part: str = (
+            start_iso.split("T")[1].replace(":", "")[:4] if "T" in start_iso else ""
+        )
         if time_part:
             params["dates"] = f"{date_part}T{time_part}00/{date_part}T{time_part}00"
         else:
@@ -46,7 +49,10 @@ def add_calendar_event(
         params["location"] = location
     if notes:
         params["details"] = notes
-    url = "https://calendar.google.com/calendar/render?action=TEMPLATE&" + urllib.parse.urlencode(params)
+    url: str = (
+        "https://calendar.google.com/calendar/render?action=TEMPLATE&"
+        + urllib.parse.urlencode(params)
+    )
     webbrowser.open(url)
     return (
         f"Apple Calendar bu platformda desteklenmiyor. "
