@@ -1,0 +1,12 @@
+# ── E.D.I.T.H Geliştirme ve Test Bağımlılıkları ──
+-r requirements.txt
+
+# Test Koşucusu ve Kapsam Analizi
+pytest>=8.0.0
+pytest-cov>=4.1.0
+
+# Statik Analiz ve Tip Güvenliği
+flake8>=7.0.0
+mypy>=1.9.0
+types-requests>=2.31.0
+types-Pillow>=10.0.0
