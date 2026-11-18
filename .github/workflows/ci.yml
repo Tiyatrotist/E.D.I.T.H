@@ -27,7 +27,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Compile security-critical modules
-        run: python -B -m compileall -q app_config.py core/sync_client.py
+        run: python -B -m compileall -q app_config.py core/sync_client.py actions/
 
       - name: Run sync security tests
         run: python -B -m unittest discover -s tests -p "test_sync_security_defaults.py" -v
@@ -40,3 +40,11 @@ jobs:
           else
             echo "Configuration privacy tests are not present on this branch yet."
           fi
+
+      - name: Run action module unit tests
+        run: |
+          python -B -m unittest discover -s tests -p "test_calendar.py" -v
+          python -B -m unittest discover -s tests -p "test_weather.py" -v
+          python -B -m unittest discover -s tests -p "test_sys_info.py" -v
+          python -B -m unittest discover -s tests -p "test_reminders.py" -v
+          python -B -m unittest discover -s tests -p "test_shell.py" -v
