@@ -2,7 +2,10 @@
 Terminal komutu çalıştırma — Windows cmd/PowerShell
 """
 
+from __future__ import annotations
+
 import subprocess
+from typing import Callable, Optional
 
 
 BLOCKED = [
@@ -19,8 +22,25 @@ BLOCKED = [
 ]
 
 
-def shell_run(command: str, timeout: int = 30) -> str:
-    if not command:
+def _default_runner(command: str, timeout: int) -> str:
+    result = subprocess.run(
+        command,
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return (result.stdout + result.stderr).strip()
+
+
+def shell_run(
+    command: str,
+    timeout: int = 30,
+    runner: Optional[Callable[[str, int], str]] = None,
+) -> str:
+    if not command or not command.strip():
         return "Komut belirtilmedi."
 
     cmd_lower = command.lower().strip()
@@ -29,17 +49,10 @@ def shell_run(command: str, timeout: int = 30) -> str:
         if blocked in cmd_lower:
             return f"Güvenlik: Bu komut engellendi → {blocked}"
 
+    run_fn = runner if runner is not None else _default_runner
+
     try:
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            encoding="utf-8",
-            errors="replace",
-        )
-        output = (result.stdout + result.stderr).strip()
+        output = run_fn(command, timeout)
         if not output:
             return "Komut başarıyla çalıştı (çıktı yok)."
         if len(output) > 800:
